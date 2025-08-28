@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MapLibre GL CSS */
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@layer base {
+  :root {
+    --background: 11 16 33;
+    --foreground: 228 228 231;
+    --primary: 125 211 252;
+    --secondary: 245 201 74;
+    --accent: 167 139 250;
+    --muted: 30 41 59;
+    --border: 51 65 85;
+  }
+
+  * {
+    border-color: rgb(51, 65, 85);
+  }
+  
+  body {
+    background-color: #050814;
+    color: #e4e4e7;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

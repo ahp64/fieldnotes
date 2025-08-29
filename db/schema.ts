@@ -24,7 +24,7 @@ export const places = pgTable('places', {
   address: text('address'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
-  locationIdx: index('places_location_idx').using('gist', table.lat, table.lon),
+  locationIdx: index('places_location_idx').on(table.lat, table.lon),
   osmIdIdx: index('places_osm_id_idx').on(table.osmId),
 }))
 

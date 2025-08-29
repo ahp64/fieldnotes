@@ -5,6 +5,9 @@
 /* MapLibre GL CSS */
 @import 'maplibre-gl/dist/maplibre-gl.css';
 
+/* Cesium CSS */
+@import 'cesium/Build/Cesium/Widgets/widgets.css';
+
 @layer base {
   :root {
     --background: 11 16 33;

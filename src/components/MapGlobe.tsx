@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import { useEffect, useRef, useState } from 'react'
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 
 interface Visit {
   id: string
@@ -29,192 +29,269 @@ interface MapGlobeProps {
 
 export default function MapGlobe({ visits = [] }: MapGlobeProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
-  const map = useRef<maplibregl.Map | null>(null)
+  const map = useRef<mapboxgl.Map | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
 
-    console.log('Initializing MapLibre GL...')
+    console.log('Initializing Mapbox Globe...')
+    setIsLoading(true)
+    setError(null)
 
-    try {
-      map.current = new maplibregl.Map({
-        container: mapContainer.current,
-        style: {
-          version: 8,
-          sources: {
-            'osm': {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '© OpenStreetMap contributors'
-            }
-          },
-          layers: [
-            {
-              id: 'osm-background',
-              type: 'background',
-              paint: {
-                'background-color': '#050814'
+    const initializeMap = async () => {
+      try {
+        // Set access token from environment variable
+        const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+        if (!mapboxToken) {
+          throw new Error('NEXT_PUBLIC_MAPBOX_TOKEN is required')
+        }
+        mapboxgl.accessToken = mapboxToken
+
+        // Create Mapbox map with minimal 80-Days style from MAPBOX.md
+        map.current = new mapboxgl.Map({
+          container: mapContainer.current!,
+          projection: { name: 'globe' },
+          style: {
+            version: 8,
+            glyphs: 'mapbox://fonts/mapbox/{fontstack}/{range}.pbf',
+            sources: {
+              streets: { 
+                type: 'vector', 
+                url: 'mapbox://mapbox.mapbox-streets-v8' 
+              },
+              countries: { 
+                type: 'vector', 
+                url: 'mapbox://mapbox.country-boundaries-v1' 
               }
             },
-            {
-              id: 'osm',
-              type: 'raster',
-              source: 'osm'
+            layers: [
+              // 1) Background as dark blue ocean
+              { 
+                id: 'bg', 
+                type: 'background', 
+                paint: { 'background-color': '#0D1B2A' } // Dark blue water
+              },
+              
+              // 2) Try land polygons from Streets v8 (more uniform)
+              {
+                id: 'land',
+                type: 'fill',
+                source: 'streets',
+                'source-layer': 'landuse',
+                filter: ['in', ['get', 'class'], ['literal', ['park', 'cemetery', 'glacier', 'pitch', 'sand']]], // Land areas only
+                paint: {
+                  'fill-color': '#0A0D0F', // Uniform color
+                  'fill-opacity': 0.95,
+                  'fill-blur': 0.5,
+                  'fill-antialias': false
+                }
+              },
+              
+              // 2a) Backup - try actual land from landcover
+              {
+                id: 'land-backup',
+                type: 'fill',
+                source: 'streets',
+                'source-layer': 'landcover',
+                filter: ['==', ['get', 'class'], 'land'],
+                paint: {
+                  'fill-color': '#0A0D0F', // Uniform color
+                  'fill-opacity': 0.95,
+                  'fill-blur': 0.5,
+                  'fill-antialias': false
+                }
+              },
+              
+              // 2b) Subtle green sheen overlay with soft edges
+              {
+                id: 'land-green-sheen',
+                type: 'fill',
+                source: 'countries',
+                'source-layer': 'country_boundaries',
+                filter: ['all',
+                  ['==', ['get', 'disputed'], 'false'],
+                  ['has', 'iso_3166_1_alpha_3']
+                ],
+                paint: {
+                  'fill-color': '#1A3D2A', // Muted green for sheen
+                  'fill-opacity': 0.08, // Very subtle
+                  'fill-blur': 0.8, // More blur for soft green glow
+                  'fill-antialias': false
+                }
+              },
+              
+              // 3) Water above land - only large bodies of water (soft edges)
+              {
+                id: 'water',
+                type: 'fill',
+                source: 'streets',
+                'source-layer': 'water',
+                filter: ['>=', ['get', 'area'], 1000000], // Only show large water bodies (1M+ sq meters)
+                paint: { 
+                  'fill-color': '#0D1B2A', // Dark blue water
+                  'fill-opacity': 0.92, // Slightly transparent for softer blend
+                  'fill-blur': 0.3, // Soft edges with water
+                  'fill-antialias': false // Remove sharp edges
+                }
+              },
+              
+              // 4) Translucent grey international borders
+              {
+                id: 'borders-intl',
+                type: 'line',
+                source: 'streets',
+                'source-layer': 'admin',
+                filter: ['all',
+                  ['==', ['get', 'admin_level'], 0],
+                  ['==', ['get', 'maritime'], false],
+                  ['match', ['get', 'worldview'], ['US', 'all', 'IN', 'JP', 'CN'], true, false]
+                ],
+                paint: { 
+                  'line-color': '#808080', // Grey color
+                  'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.4, 6, 1.0], 
+                  'line-opacity': 0.6, // Translucent
+                  'line-blur': 0.2
+                }
+              },
+              
+              // 5) Additional grey border glow
+              {
+                id: 'borders-glow',
+                type: 'line',
+                source: 'streets',
+                'source-layer': 'admin',
+                filter: ['all',
+                  ['==', ['get', 'admin_level'], 0],
+                  ['==', ['get', 'maritime'], false],
+                  ['match', ['get', 'worldview'], ['US', 'all', 'IN', 'JP', 'CN'], true, false]
+                ],
+                paint: { 
+                  'line-color': '#808080', // Grey color
+                  'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.8, 6, 2.0], 
+                  'line-opacity': 0.2, // Very translucent glow
+                  'line-blur': 1.0
+                }
+              },
+              
+              // 6) Political boundaries - translucent grey
+              {
+                id: 'borders-admin1',
+                type: 'line',
+                source: 'streets',
+                'source-layer': 'admin',
+                filter: ['all',
+                  ['in', ['get', 'admin_level'], ['literal', [1, 2]]], // Try both level 1 and 2
+                  ['==', ['get', 'maritime'], false],
+                  ['match', ['get', 'worldview'], ['US', 'all'], true, false] // Simplified worldview
+                ],
+                paint: { 
+                  'line-color': '#909090', // Light grey
+                  'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.05, 4, 0.15, 6, 0.3],
+                  'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.3, 4, 0.4, 6, 0.5], // Translucent
+                  'line-blur': 0.3
+                }
+              },
+              
+              // 7) Political boundaries backup - translucent grey
+              {
+                id: 'borders-country-admin',
+                type: 'line',
+                source: 'countries',
+                'source-layer': 'country_boundaries',
+                filter: ['==', ['get', 'disputed'], 'false'],
+                paint: { 
+                  'line-color': '#909090', // Light grey
+                  'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.08, 4, 0.2, 6, 0.4],
+                  'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.35, 4, 0.45, 6, 0.55], // Translucent
+                  'line-blur': 0.4
+                }
+              }
+            ]
+          },
+          center: [0, 20],
+          zoom: 1.5
+        })
+
+        // Add enhanced fog effect and lighting for day/night globe
+        map.current.on('style.load', () => {
+          if (map.current) {
+            // Enhanced fog with atmospheric lighting
+            map.current.setFog({
+              color: 'rgba(10,61,115,0.6)', // Darker blue matching water
+              'horizon-blend': 0.15, // More defined horizon
+              'high-color': 'rgba(255,255,255,0.25)', // Brighter highlight for sheen
+              'space-color': '#000810', // Deep space background
+              'star-intensity': 0.8 // Subtle stars for elegance
+            })
+            
+            // Add directional lighting for day/night effect
+            if (map.current.setLight) {
+              map.current.setLight({
+                'color': '#ffffff',
+                'intensity': 0.8,
+                'position': [1.5, 90, 80] // Position sun to create light/shadow
+              })
             }
+            
+            console.log('Mapbox globe with day/night lighting loaded')
+          }
+        })
+
+        // Add visit markers
+        const addMarkers = () => {
+          if (!map.current) return
+
+          const locations = visits.length > 0 ? visits : [
+            { placeName: 'New York', placeData: { latitude: 40.7128, longitude: -74.0060 } },
+            { placeName: 'London', placeData: { latitude: 51.5074, longitude: -0.1278 } },
+            { placeName: 'Tokyo', placeData: { latitude: 35.6762, longitude: 139.6503 } },
+            { placeName: 'Sydney', placeData: { latitude: -33.8688, longitude: 151.2093 } }
           ]
-        },
-        center: [20, 30],
-        zoom: 1.5,
-        maxZoom: 18,
-        minZoom: 0.5,
-      })
 
-      // Wait for map to load before adding markers
-      map.current.on('style.load', () => {
-        console.log('Map loaded successfully')
-      })
+          locations.forEach((location) => {
+            if (location.placeData && map.current) {
+              // Create marker element
+              const el = document.createElement('div')
+              el.className = 'visit-marker'
+              el.style.cssText = `
+                background-color: #f1c40f;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                width: 12px;
+                height: 12px;
+                cursor: pointer;
+              `
+              
+              // Add marker to map
+              new mapboxgl.Marker(el)
+                .setLngLat([location.placeData.longitude, location.placeData.latitude])
+                .addTo(map.current)
+            }
+          })
+        }
 
-      map.current.on('error', (e) => {
-        console.error('Map error:', e)
-      })
-
-      console.log('Map instance created')
-    } catch (error) {
-      console.error('Failed to create map:', error)
-    }
-
-    // Clear existing markers and add visit markers
-    const markers: maplibregl.Marker[] = []
-
-    visits.forEach((visit) => {
-      if (visit.placeData) {
-        const el = document.createElement('div')
-        el.className = 'marker'
-        el.style.backgroundColor = '#7dd3fc'
-        el.style.width = '14px'
-        el.style.height = '14px'
-        el.style.borderRadius = '50%'
-        el.style.border = '3px solid #ffffff'
-        el.style.boxShadow = '0 0 10px rgba(125, 211, 252, 0.6)'
-        el.style.cursor = 'pointer'
-
-        const marker = new maplibregl.Marker(el)
-          .setLngLat([visit.placeData.longitude, visit.placeData.latitude])
-          .addTo(map.current!)
-
-        markers.push(marker)
-
-        // Add popup on click
-        el.addEventListener('click', () => {
-          new maplibregl.Popup({ closeOnClick: true })
-            .setLngLat([visit.placeData!.longitude, visit.placeData!.latitude])
-            .setHTML(`
-              <div style="color: #1a202c; padding: 12px; max-width: 280px;">
-                <h3 style="margin: 0 0 8px 0; font-weight: bold;">${visit.placeName.split(',')[0]}</h3>
-                <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${visit.date}</p>
-                <div style="margin: 4px 0;">
-                  ${'★'.repeat(visit.rating)}${'☆'.repeat(5 - visit.rating)}
-                </div>
-                ${visit.photos && visit.photos.length > 0 ? `
-                  <div style="margin: 8px 0; display: flex; gap: 4px; overflow-x: auto;">
-                    ${visit.photos.slice(0, 3).map(photo => `
-                      <img src="${photo}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; flex-shrink: 0;" alt="Visit photo" />
-                    `).join('')}
-                    ${visit.photos.length > 3 ? `
-                      <div style="width: 50px; height: 50px; background: #f1f5f9; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #64748b;">
-                        +${visit.photos.length - 3}
-                      </div>
-                    ` : ''}
-                  </div>
-                ` : ''}
-                ${visit.notes ? `<p style="margin: 4px 0 0 0; font-size: 12px;">${visit.notes.slice(0, 100)}${visit.notes.length > 100 ? '...' : ''}</p>` : ''}
-                ${visit.tags.length > 0 ? `
-                  <div style="margin-top: 8px;">
-                    ${visit.tags.map(tag => `<span style="background: #e2e8f0; color: #4a5568; font-size: 10px; padding: 2px 6px; border-radius: 12px; margin-right: 4px;">${tag}</span>`).join('')}
-                  </div>
-                ` : ''}
-              </div>
-            `)
-            .addTo(map.current!)
+        // Wait for map to load before adding markers
+        map.current.on('load', () => {
+          setIsLoading(false)
+          addMarkers()
+          console.log('Mapbox globe fully loaded')
         })
-      }
-    })
 
-    // Add some sample markers if no visits exist
-    if (visits.length === 0) {
-      const sampleLocations = [
-        { name: 'New York', coordinates: [-74.006, 40.7128] },
-        { name: 'London', coordinates: [-0.1276, 51.5074] },
-        { name: 'Tokyo', coordinates: [139.6917, 35.6895] },
-        { name: 'Sydney', coordinates: [151.2093, -33.8688] },
-        { name: 'Cairo', coordinates: [31.2357, 30.0444] },
-      ]
+        console.log('Mapbox globe initialized')
 
-      sampleLocations.forEach((location, index) => {
-        const el = document.createElement('div')
-        el.className = 'marker'
-        el.style.backgroundColor = index === 0 ? '#7dd3fc' : '#f5c94a'
-        el.style.width = '12px'
-        el.style.height = '12px'
-        el.style.borderRadius = '50%'
-        el.style.border = '2px solid #ffffff'
-        el.style.boxShadow = '0 0 10px rgba(125, 211, 252, 0.5)'
-        el.style.cursor = 'pointer'
-
-        const marker = new maplibregl.Marker(el)
-          .setLngLat(location.coordinates as [number, number])
-          .addTo(map.current!)
-
-        markers.push(marker)
-
-        // Add popup on click
-        el.addEventListener('click', () => {
-          new maplibregl.Popup({ closeOnClick: true })
-            .setLngLat(location.coordinates as [number, number])
-            .setHTML(`
-              <div style="color: #1a202c; padding: 8px;">
-                <h3 style="margin: 0 0 4px 0; font-weight: bold;">${location.name}</h3>
-                <p style="margin: 0; font-size: 12px;">Sample location - Add your first visit!</p>
-              </div>
-            `)
-            .addTo(map.current!)
-        })
-      })
-    }
-
-    // Add smooth idle rotation
-    let userInteracting = false
-    let spinEnabled = true
-
-    function spinGlobe() {
-      if (spinEnabled && !userInteracting && map.current) {
-        const center = map.current.getCenter()
-        center.lng -= 0.2
-        map.current.easeTo({ center, duration: 1000, easing: (t) => t })
-        requestAnimationFrame(spinGlobe)
+      } catch (error) {
+        console.error('Failed to initialize Mapbox:', error)
+        setError('Failed to load map: ' + (error as Error).message)
+        setIsLoading(false)
       }
     }
 
-    if (map.current) {
-      map.current.on('mousedown', () => { userInteracting = true })
-      map.current.on('touchstart', () => { userInteracting = true })
-      map.current.on('mouseup', () => { 
-        userInteracting = false
-        setTimeout(() => spinGlobe(), 2000)
-      })
-      map.current.on('touchend', () => { 
-        userInteracting = false
-        setTimeout(() => spinGlobe(), 2000)
-      })
-    }
-
-    // Start spinning
-    spinGlobe()
+    initializeMap()
 
     return () => {
-      // Clean up markers
-      markers.forEach(marker => marker.remove())
+      // Cleanup Mapbox instance
       if (map.current) {
         map.current.remove()
         map.current = null
@@ -223,17 +300,95 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
   }, [visits])
 
   return (
-    <div 
-      ref={mapContainer} 
-      className="w-full h-full bg-slate-900"
-      style={{ 
-        minHeight: '500px',
-        position: 'relative'
-      }}
-    >
-      {!map.current && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-white">Loading map...</div>
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <div
+        ref={mapContainer}
+        style={{
+          width: '100%',
+          height: '100%'
+        }}
+      />
+
+      {/* Loading State */}
+      {isLoading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #0c1222 0%, #000814 100%)',
+            color: '#e2e8f0',
+            zIndex: 10
+          }}
+        >
+          <div style={{ fontSize: '48px', marginBottom: '20px', animation: 'pulse 2s infinite' }}>🗺️</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Loading Map...</div>
+          <div style={{ fontSize: '16px', opacity: 0.7 }}>Powered by Mapbox</div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            color: '#e2e8f0',
+            zIndex: 10
+          }}
+        >
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>⚠️</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Map Error</div>
+          <div style={{ fontSize: '16px', opacity: 0.7, textAlign: 'center', maxWidth: '400px' }}>
+            {error}
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: '16px',
+              padding: '8px 16px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            Refresh Page
+          </button>
+        </div>
+      )}
+
+      {/* Map Instructions */}
+      {!isLoading && !error && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '20px',
+            background: 'rgba(0, 0, 0, 0.7)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            zIndex: 10
+          }}
+        >
+🌍 Interactive Globe • Scroll to zoom • Drag to rotate
         </div>
       )}
     </div>

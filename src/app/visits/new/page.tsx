@@ -82,110 +82,145 @@ export default function NewVisit() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Add New Visit</h1>
-          <p className="text-muted-foreground">Document your travel experience</p>
+    <div className="min-h-[calc(100vh-4rem)] bg-background p-6">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <span className="text-lg">📍</span>
+            </div>
+            <h1 className="text-3xl font-bold text-foreground">Add New Visit</h1>
+          </div>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Share your travel experience and add it to your personal globe
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 bg-card p-6 rounded-lg border border-border">
-          <div>
-            <label htmlFor="placeName" className="block text-sm font-medium text-foreground mb-2">
-              Place Name *
+        <form onSubmit={handleSubmit} className="space-y-8 bg-card/50 backdrop-blur-sm p-8 rounded-2xl border border-border/50 shadow-lg">
+          {/* Location Section */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-foreground">
+              🌍 Where did you visit?
             </label>
+            <p className="text-xs text-muted-foreground mb-3">Search for any location worldwide</p>
             <PlaceSearch
               onPlaceSelect={handlePlaceSelect}
               initialValue={formData.placeName}
             />
           </div>
 
-          <div>
-            <label htmlFor="date" className="block text-sm font-medium text-foreground mb-2">
-              Visit Date *
-            </label>
-            <input
-              type="date"
-              id="date"
-              name="date"
-              required
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              value={formData.date}
-              onChange={handleChange}
-            />
+          {/* Basic Info Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label htmlFor="date" className="block text-sm font-semibold text-foreground">
+                📅 When did you visit?
+              </label>
+              <input
+                type="date"
+                id="date"
+                name="date"
+                required
+                className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                value={formData.date}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="rating" className="block text-sm font-semibold text-foreground">
+                ⭐ How was your experience?
+              </label>
+              <div className="relative">
+                <select
+                  id="rating"
+                  name="rating"
+                  className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none transition-colors"
+                  value={formData.rating}
+                  onChange={handleChange}
+                >
+                  <option value={1}>⭐ Poor</option>
+                  <option value={2}>⭐⭐ Fair</option>
+                  <option value={3}>⭐⭐⭐ Good</option>
+                  <option value={4}>⭐⭐⭐⭐ Very Good</option>
+                  <option value={5}>⭐⭐⭐⭐⭐ Excellent</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="rating" className="block text-sm font-medium text-foreground mb-2">
-              Rating
+          {/* Notes Section */}
+          <div className="space-y-2">
+            <label htmlFor="notes" className="block text-sm font-semibold text-foreground">
+              ✍️ Share your experience
             </label>
-            <select
-              id="rating"
-              name="rating"
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              value={formData.rating}
-              onChange={handleChange}
-            >
-              <option value={1}>1 - Poor</option>
-              <option value={2}>2 - Fair</option>
-              <option value={3}>3 - Good</option>
-              <option value={4}>4 - Very Good</option>
-              <option value={5}>5 - Excellent</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-foreground mb-2">
-              Notes
-            </label>
+            <p className="text-xs text-muted-foreground mb-3">What made this place special?</p>
             <textarea
               id="notes"
               name="notes"
               rows={4}
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="Share your thoughts about this place..."
+              className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors resize-none"
+              placeholder="Describe your experience, what you loved about this place, memorable moments..."
               value={formData.notes}
               onChange={handleChange}
             />
           </div>
 
-          <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-foreground mb-2">
-              Tags
-            </label>
-            <input
-              type="text"
-              id="tags"
-              name="tags"
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="food, nature, museum (comma separated)"
-              value={formData.tags}
-              onChange={handleChange}
-            />
+          {/* Tags and Photos Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label htmlFor="tags" className="block text-sm font-semibold text-foreground">
+                🏷️ Add tags
+              </label>
+              <p className="text-xs text-muted-foreground mb-3">Help categorize your visit</p>
+              <input
+                type="text"
+                id="tags"
+                name="tags"
+                className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                placeholder="food, nature, museum, adventure..."
+                value={formData.tags}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-foreground">
+                📸 Add photos
+              </label>
+              <p className="text-xs text-muted-foreground mb-3">Capture your memories</p>
+              <PhotoUpload onPhotosChange={handlePhotosChange} maxPhotos={3} />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Photos
-            </label>
-            <PhotoUpload onPhotosChange={handlePhotosChange} maxPhotos={3} />
-          </div>
-
-          <div className="flex gap-4 pt-4">
+          {/* Action Buttons */}
+          <div className="flex gap-4 pt-6 border-t border-border/50">
             <Button
               type="button"
               variant="ghost"
               onClick={() => router.push('/')}
-              className="flex-1"
+              className="flex-1 py-3 rounded-xl"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isLoading}
-              className="flex-1"
+              className="flex-1 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
-              {isLoading ? 'Saving...' : 'Save Visit'}
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
+                  Saving...
+                </div>
+              ) : (
+                'Save Visit'
+              )}
             </Button>
           </div>
         </form>

@@ -28,12 +28,9 @@ export function Navigation() {
                 >
                   Add Visit
                 </Link>
-                <Link
-                  href="/profile"
-                  className="text-sm text-foreground hover:text-primary transition-colors"
-                >
+                <button className="text-sm text-foreground hover:text-primary transition-colors">
                   Profile
-                </Link>
+                </button>
                 <Button
                   variant="ghost"
                   size="sm"

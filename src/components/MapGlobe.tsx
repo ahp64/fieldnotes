@@ -74,66 +74,43 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 paint: { 'background-color': '#0D1B2A' } // Dark blue water
               },
               
-              // 2) Try land polygons from Streets v8 (more uniform)
+              // 2) Dark land with tiny brightness increase
               {
                 id: 'land',
                 type: 'fill',
-                source: 'streets',
-                'source-layer': 'landuse',
-                filter: ['in', ['get', 'class'], ['literal', ['park', 'cemetery', 'glacier', 'pitch', 'sand']]], // Land areas only
+                source: 'countries',
+                'source-layer': 'country_boundaries',
+                filter: ['==', ['get','disputed'], 'false'],
                 paint: {
-                  'fill-color': '#0A0D0F', // Uniform color
-                  'fill-opacity': 0.95,
-                  'fill-blur': 0.5,
-                  'fill-antialias': false
+                  'fill-color': ['interpolate', ['linear'], ['zoom'], 0, '#121416', 5, '#141618', 8, '#16181A'],
+                  'fill-opacity': 1
                 }
               },
               
-              // 2a) Backup - try actual land from landcover
-              {
-                id: 'land-backup',
-                type: 'fill',
-                source: 'streets',
-                'source-layer': 'landcover',
-                filter: ['==', ['get', 'class'], 'land'],
-                paint: {
-                  'fill-color': '#0A0D0F', // Uniform color
-                  'fill-opacity': 0.95,
-                  'fill-blur': 0.5,
-                  'fill-antialias': false
-                }
-              },
-              
-              // 2b) Subtle green sheen overlay with soft edges
+              // 2a) Subtle green sheen overlay 
               {
                 id: 'land-green-sheen',
                 type: 'fill',
                 source: 'countries',
                 'source-layer': 'country_boundaries',
-                filter: ['all',
-                  ['==', ['get', 'disputed'], 'false'],
-                  ['has', 'iso_3166_1_alpha_3']
-                ],
+                filter: ['==', ['get','disputed'], 'false'],
                 paint: {
-                  'fill-color': '#1A3D2A', // Muted green for sheen
-                  'fill-opacity': 0.08, // Very subtle
-                  'fill-blur': 0.8, // More blur for soft green glow
-                  'fill-antialias': false
+                  'fill-color': '#1A4D2A', // More vibrant green
+                  'fill-opacity': 0.12 // Dialed back green sheen
                 }
               },
               
-              // 3) Water above land - only large bodies of water (soft edges)
+              // 3) Water above land - dark blue like background
               {
                 id: 'water',
                 type: 'fill',
                 source: 'streets',
                 'source-layer': 'water',
-                filter: ['>=', ['get', 'area'], 1000000], // Only show large water bodies (1M+ sq meters)
+                filter: ['>=', ['get', 'area'], 1000000],
                 paint: { 
                   'fill-color': '#0D1B2A', // Dark blue water
-                  'fill-opacity': 0.92, // Slightly transparent for softer blend
-                  'fill-blur': 0.3, // Soft edges with water
-                  'fill-antialias': false // Remove sharp edges
+                  'fill-opacity': 0.92,
+                  'fill-antialias': false
                 }
               },
               
@@ -144,14 +121,14 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 source: 'streets',
                 'source-layer': 'admin',
                 filter: ['all',
-                  ['==', ['get', 'admin_level'], 0],
-                  ['==', ['get', 'maritime'], false],
-                  ['match', ['get', 'worldview'], ['US', 'all', 'IN', 'JP', 'CN'], true, false]
+                  ['==', ['get','admin_level'], 0],
+                  ['==', ['get','maritime'], false],
+                  ['match', ['get','worldview'], ['US','all','IN','JP','CN'], true, false]
                 ],
                 paint: { 
-                  'line-color': '#808080', // Grey color
+                  'line-color': '#808080',
                   'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.4, 6, 1.0], 
-                  'line-opacity': 0.6, // Translucent
+                  'line-opacity': 0.6,
                   'line-blur': 0.2
                 }
               },
@@ -163,14 +140,14 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 source: 'streets',
                 'source-layer': 'admin',
                 filter: ['all',
-                  ['==', ['get', 'admin_level'], 0],
-                  ['==', ['get', 'maritime'], false],
-                  ['match', ['get', 'worldview'], ['US', 'all', 'IN', 'JP', 'CN'], true, false]
+                  ['==', ['get','admin_level'], 0],
+                  ['==', ['get','maritime'], false],
+                  ['match', ['get','worldview'], ['US','all','IN','JP','CN'], true, false]
                 ],
                 paint: { 
-                  'line-color': '#808080', // Grey color
+                  'line-color': '#808080',
                   'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.8, 6, 2.0], 
-                  'line-opacity': 0.2, // Very translucent glow
+                  'line-opacity': 0.2,
                   'line-blur': 1.0
                 }
               },
@@ -182,14 +159,14 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 source: 'streets',
                 'source-layer': 'admin',
                 filter: ['all',
-                  ['in', ['get', 'admin_level'], ['literal', [1, 2]]], // Try both level 1 and 2
-                  ['==', ['get', 'maritime'], false],
-                  ['match', ['get', 'worldview'], ['US', 'all'], true, false] // Simplified worldview
+                  ['in', ['get','admin_level'], ['literal', [1, 2]]],
+                  ['==', ['get','maritime'], false],
+                  ['match', ['get','worldview'], ['US','all'], true, false]
                 ],
                 paint: { 
-                  'line-color': '#909090', // Light grey
+                  'line-color': '#909090',
                   'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.05, 4, 0.15, 6, 0.3],
-                  'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.3, 4, 0.4, 6, 0.5], // Translucent
+                  'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.3, 4, 0.4, 6, 0.5],
                   'line-blur': 0.3
                 }
               },
@@ -200,11 +177,11 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 type: 'line',
                 source: 'countries',
                 'source-layer': 'country_boundaries',
-                filter: ['==', ['get', 'disputed'], 'false'],
+                filter: ['==', ['get','disputed'], 'false'],
                 paint: { 
-                  'line-color': '#909090', // Light grey
+                  'line-color': '#909090',
                   'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.08, 4, 0.2, 6, 0.4],
-                  'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.35, 4, 0.45, 6, 0.55], // Translucent
+                  'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.35, 4, 0.45, 6, 0.55],
                   'line-blur': 0.4
                 }
               }

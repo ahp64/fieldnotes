@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Plus, MapPin } from 'lucide-react'
 import MapGlobe from '@/components/MapGlobe'
-import SimpleMap from '@/components/SimpleMap'
-import TestContainer from '@/components/TestContainer'
-import WorkingGlobe from '@/components/WorkingGlobe'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Visit {
   id: string
@@ -28,6 +27,7 @@ interface Visit {
 
 export default function Home() {
   const [visits, setVisits] = useState<Visit[]>([])
+  const { user } = useAuth()
 
   useEffect(() => {
     const storedVisits = localStorage.getItem('fieldnotes-visits')
@@ -42,115 +42,125 @@ export default function Home() {
       <div 
         style={{
           position: 'fixed',
-          top: '4rem', // Account for navbar
+          top: 0,
           left: 0,
           right: 0,
           bottom: 0,
           width: '100vw',
-          height: 'calc(100vh - 4rem)',
+          height: '100vh',
           zIndex: 1
         }}
       >
         <MapGlobe visits={visits} />
       </div>
-      
-      {/* Top Status Bar */}
-      <div className="absolute top-6 left-6 z-10">
-        <div className="bg-background/95 backdrop-blur-sm rounded-xl p-4 border border-border shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Your Travel Globe</h2>
-              <p className="text-xs text-muted-foreground">{visits.length} places visited</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Legend - hide on smaller screens to avoid overlap */}
-      <div className="absolute top-6 right-6 z-10 hidden xl:block">
-        <div className="bg-background/90 backdrop-blur-sm rounded-xl p-3 border border-border/50 shadow-lg">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-              <span className="text-xs text-foreground">Your visits</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-              <span className="text-xs text-foreground">Sample locations</span>
-            </div>
+      {/* Top right auth buttons */}
+      <div className="absolute top-6 right-6 z-10">
+        {user ? (
+          <div className="bg-black/40 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2">
+            <div className="text-sm text-white font-medium">Welcome back</div>
           </div>
-        </div>
-      </div>
-
-      {/* Bottom Action Bar */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-        <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-3 border border-border shadow-lg">
-          <div className="flex items-center gap-6">
-            <button className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors">
-              <span className="text-base">🌍</span>
-              Globe View
-            </button>
-            <div className="w-px h-5 bg-border"></div>
-            <Link href="/visits/new" className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors bg-primary/10 hover:bg-primary/20 px-3 py-2 rounded-lg">
-              <span className="text-base">📍</span>
-              Add Visit
+        ) : (
+          <div className="flex items-center space-x-3">
+            <Link 
+              href="/about" 
+              className="text-sm text-white/90 hover:text-white transition-colors bg-black/30 backdrop-blur-md border border-white/20 hover:border-white/30 px-4 py-2 rounded-lg hover:bg-black/40"
+            >
+              About
             </Link>
-            <div className="w-px h-5 bg-border"></div>
-            <button className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors">
-              <span className="text-base">🔍</span>
-              Search
-            </button>
+            <Link 
+              href="/auth/sign-in" 
+              className="text-sm text-white font-medium bg-sky-500/80 hover:bg-sky-500 backdrop-blur-md border border-sky-400/50 hover:border-sky-300 px-5 py-2 rounded-lg transition-all shadow-lg"
+            >
+              Sign In
+            </Link>
+          </div>
+        )}
+      </div>
+      
+      {/* Top Status - styled */}
+      <div className="absolute top-6 left-6 z-10">
+        <div className="bg-black/40 backdrop-blur-md border border-white/20 rounded-xl px-6 py-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-sky-400 animate-pulse shadow-lg shadow-sky-400/50"></div>
+            <div>
+              <h2 className="text-lg font-bold text-white mb-0.5">Your Travel Globe</h2>
+              <p className="text-sm text-white/80 font-medium">{visits.length} places visited</p>
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Bottom left branding */}
+      <div className="absolute bottom-6 left-6 z-10">
+        <div className="bg-black/30 backdrop-blur-md border border-white/15 rounded-lg px-4 py-2">
+          <div className="text-white/80 text-sm font-bold tracking-wide">
+            fieldnotes
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Add Button - bottom right */}
+      <div className="absolute bottom-6 right-6 z-10">
+        <Link 
+          href="/visits/new"
+          className="w-16 h-16 bg-gradient-to-br from-sky-400 to-sky-600 hover:from-sky-500 hover:to-sky-700 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center group border-2 border-white/20 hover:border-white/30"
+        >
+          <div className="relative">
+            <MapPin className="w-6 h-6 text-white drop-shadow-lg" />
+            <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full border-2 border-white flex items-center justify-center">
+              <Plus className="w-3 h-3 text-white font-bold" />
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* Visits Sidebar - only show if we have visits and enough screen space */}
       {visits.length > 0 && (
-        <div className="absolute right-6 top-24 bottom-24 w-80 z-10 hidden lg:block">
-          <div className="bg-background/90 backdrop-blur-sm rounded-xl border border-border/50 shadow-lg h-full flex flex-col">
-            <div className="p-4 border-b border-border/50">
-              <h3 className="text-base font-semibold text-foreground">Recent Visits</h3>
-              <p className="text-sm text-muted-foreground">Your latest adventures</p>
+        <div className="absolute right-6 top-32 bottom-24 w-80 z-10 hidden lg:block">
+          <div className="bg-black/40 backdrop-blur-md rounded-xl border border-white/20 shadow-xl h-full flex flex-col">
+            <div className="p-5 border-b border-white/20">
+              <h3 className="text-lg font-bold text-white mb-1">Recent Visits</h3>
+              <p className="text-sm text-white/80">Your latest adventures</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {visits.slice(-5).reverse().map((visit) => (
-                <div key={visit.id} className="bg-card/40 rounded-lg p-3 border border-border/30 hover:bg-card/60 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-foreground text-sm leading-tight">{visit.placeName.split(',')[0]}</h4>
-                    <span className="text-xs text-muted-foreground">{visit.date}</span>
+                <div key={visit.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 transition-all duration-200 shadow-lg">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="font-bold text-white text-sm leading-tight">{visit.placeName.split(',')[0]}</h4>
+                    <span className="text-xs text-white/70 font-medium bg-white/10 px-2 py-1 rounded">{visit.date}</span>
                   </div>
-                  <div className="flex items-center gap-1 mb-2">
+                  <div className="flex items-center gap-1 mb-3">
                     {[...Array(5)].map((_, i) => (
-                      <span key={i} className={`text-sm ${i < visit.rating ? 'text-yellow-400' : 'text-muted-foreground/30'}`}>
+                      <span key={i} className={`text-sm ${i < visit.rating ? 'text-yellow-400 drop-shadow-sm' : 'text-white/30'}`}>
                         ★
                       </span>
                     ))}
                   </div>
                   {visit.notes && (
-                    <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{visit.notes}</p>
+                    <p className="text-xs text-white/80 mb-3 line-clamp-2 bg-white/5 p-2 rounded border border-white/10">{visit.notes}</p>
                   )}
                   {visit.photos && visit.photos.length > 0 && (
-                    <div className="flex gap-1 mb-2 overflow-x-auto">
+                    <div className="flex gap-2 mb-3 overflow-x-auto">
                       {visit.photos.slice(0, 3).map((photo, photoIndex) => (
                         <img
                           key={photoIndex}
                           src={photo}
                           alt={`${visit.placeName} ${photoIndex + 1}`}
-                          className="w-10 h-10 object-cover rounded border border-border/50 flex-shrink-0"
+                          className="w-12 h-12 object-cover rounded-lg border-2 border-white/30 flex-shrink-0 shadow-md"
                         />
                       ))}
                       {visit.photos.length > 3 && (
-                        <div className="w-10 h-10 bg-muted rounded border border-border/50 flex items-center justify-center text-xs text-muted-foreground">
+                        <div className="w-12 h-12 bg-white/20 rounded-lg border-2 border-white/30 flex items-center justify-center text-xs text-white font-bold shadow-md">
                           +{visit.photos.length - 3}
                         </div>
                       )}
                     </div>
                   )}
                   {visit.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {visit.tags.slice(0, 3).map((tag, index) => (
-                        <span key={index} className="text-xs bg-muted/60 text-muted-foreground px-2 py-1 rounded-full">
+                        <span key={index} className="text-xs bg-sky-500/30 text-white font-medium px-3 py-1 rounded-full border border-sky-400/30">
                           {tag}
                         </span>
                       ))}

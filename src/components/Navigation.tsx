@@ -24,7 +24,7 @@ export function Navigation() {
               href="/" 
               className="flex flex-col"
             >
-              <div className="text-xl font-bold bg-gradient-to-r from-slate-100 via-slate-200 to-slate-300 bg-clip-text text-transparent hover:from-sky-200 hover:via-blue-200 hover:to-cyan-200 transition-all duration-300">
+              <div className="text-xl font-bold bg-gradient-to-r from-slate-100 via-slate-200 to-slate-300 bg-clip-text text-transparent hover:from-sky-200 hover:via-blue-200 hover:to-cyan-200 transition-all duration-300 font-montserrat">
                 Fieldnotes
               </div>
               <div className="text-xs text-slate-500 font-medium -mt-1 hidden lg:block">

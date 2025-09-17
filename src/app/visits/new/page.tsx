@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { PlaceSearch } from '@/components/PlaceSearch'
 import { PhotoUpload } from '@/components/PhotoUpload'
+import { Navigation } from '@/components/Navigation'
 
 interface Place {
   id: number
@@ -19,10 +20,9 @@ export default function NewVisit() {
   const [formData, setFormData] = useState({
     placeName: '',
     placeData: null as Place | null,
+    tagline: '',
     date: '',
-    rating: 5,
     notes: '',
-    tags: '',
     photos: [] as string[],
   })
   const [isLoading, setIsLoading] = useState(false)
@@ -39,10 +39,11 @@ export default function NewVisit() {
         id: Date.now().toString(),
         placeName: formData.placeName,
         placeData: formData.placeData,
+        tagline: formData.tagline,
         date: formData.date,
-        rating: formData.rating,
+        rating: 5, // Default rating
         notes: formData.notes,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        tags: [], // Empty tags array
         photos: formData.photos,
         createdAt: new Date().toISOString(),
       }
@@ -58,11 +59,11 @@ export default function NewVisit() {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'rating' ? parseInt(value) : value
+      [name]: value
     }))
   }
 
@@ -82,7 +83,9 @@ export default function NewVisit() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-6">
+    <>
+      <Navigation />
+      <div className="min-h-[calc(100vh-4rem)] bg-background p-6">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8 text-center">
@@ -110,48 +113,37 @@ export default function NewVisit() {
             />
           </div>
 
-          {/* Basic Info Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label htmlFor="date" className="block text-sm font-semibold text-foreground">
-                📅 When did you visit?
-              </label>
-              <input
-                type="date"
-                id="date"
-                name="date"
-                required
-                className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                value={formData.date}
-                onChange={handleChange}
-              />
-            </div>
+          {/* Tagline Section */}
+          <div className="space-y-2">
+            <label htmlFor="tagline" className="block text-sm font-semibold text-foreground">
+              ✨ Add a tagline
+            </label>
+            <p className="text-xs text-muted-foreground mb-3">A short phrase that captures your visit</p>
+            <input
+              type="text"
+              id="tagline"
+              name="tagline"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+              placeholder="e.g., 'A magical sunset over the mountains'"
+              value={formData.tagline}
+              onChange={handleChange}
+            />
+          </div>
 
-            <div className="space-y-2">
-              <label htmlFor="rating" className="block text-sm font-semibold text-foreground">
-                ⭐ How was your experience?
-              </label>
-              <div className="relative">
-                <select
-                  id="rating"
-                  name="rating"
-                  className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none transition-colors"
-                  value={formData.rating}
-                  onChange={handleChange}
-                >
-                  <option value={1}>⭐ Poor</option>
-                  <option value={2}>⭐⭐ Fair</option>
-                  <option value={3}>⭐⭐⭐ Good</option>
-                  <option value={4}>⭐⭐⭐⭐ Very Good</option>
-                  <option value={5}>⭐⭐⭐⭐⭐ Excellent</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+          {/* Date Section */}
+          <div className="space-y-2">
+            <label htmlFor="date" className="block text-sm font-semibold text-foreground">
+              📅 When did you visit?
+            </label>
+            <input
+              type="date"
+              id="date"
+              name="date"
+              required
+              className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+              value={formData.date}
+              onChange={handleChange}
+            />
           </div>
 
           {/* Notes Section */}
@@ -171,31 +163,13 @@ export default function NewVisit() {
             />
           </div>
 
-          {/* Tags and Photos Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label htmlFor="tags" className="block text-sm font-semibold text-foreground">
-                🏷️ Add tags
-              </label>
-              <p className="text-xs text-muted-foreground mb-3">Help categorize your visit</p>
-              <input
-                type="text"
-                id="tags"
-                name="tags"
-                className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                placeholder="food, nature, museum, adventure..."
-                value={formData.tags}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-foreground">
-                📸 Add photos
-              </label>
-              <p className="text-xs text-muted-foreground mb-3">Capture your memories</p>
-              <PhotoUpload onPhotosChange={handlePhotosChange} maxPhotos={3} />
-            </div>
+          {/* Photos Section */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-foreground">
+              📸 Add photos
+            </label>
+            <p className="text-xs text-muted-foreground mb-3">Capture your memories</p>
+            <PhotoUpload onPhotosChange={handlePhotosChange} maxPhotos={3} />
           </div>
 
           {/* Action Buttons */}
@@ -226,5 +200,6 @@ export default function NewVisit() {
         </form>
       </div>
     </div>
+    </>
   )
 }

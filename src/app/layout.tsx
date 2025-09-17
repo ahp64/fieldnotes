@@ -1,9 +1,15 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Montserrat } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { Navigation } from '@/components/Navigation'
 
 const inter = Inter({ subsets: ['latin'] })
+const montserrat = Montserrat({
+  subsets: ['latin'],
+  variable: '--font-montserrat',
+  display: 'swap'
+})
 
 export const metadata: Metadata = {
   title: 'Fieldnotes',
@@ -17,11 +23,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={inter.className}>
+      <body className={`${inter.className} ${montserrat.variable}`}>
         <AuthProvider>
-          <main className="min-h-screen">
-            {children}
-          </main>
+          {children}
         </AuthProvider>
       </body>
     </html>

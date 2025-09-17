@@ -1,6 +1,10 @@
+import { Navigation } from '@/components/Navigation'
+
 export default function About() {
   return (
-    <div className="container mx-auto px-4 py-16">
+    <>
+      <Navigation />
+      <div className="container mx-auto px-4 py-16">
       <div className="text-center space-y-8">
         <div className="space-y-6">
           <h1 className="text-5xl font-bold tracking-tight text-balance">
@@ -53,5 +57,6 @@ export default function About() {
         </div>
       </div>
     </div>
+    </>
   )
 }

@@ -34,4 +34,12 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Targeted fix for MapLibre CSS interference */
+  .maplibregl-ctrl-bottom-left,
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-top-left,
+  .maplibregl-ctrl-top-right {
+    position: static !important;
+  }
 }

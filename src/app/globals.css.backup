@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MapLibre GL CSS */
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+/* Cesium CSS */
+@import 'cesium/Build/Cesium/Widgets/widgets.css';
+
+@layer base {
+  :root {
+    --background: 11 16 33;
+    --foreground: 228 228 231;
+    --primary: 125 211 252;
+    --secondary: 245 201 74;
+    --accent: 167 139 250;
+    --muted: 30 41 59;
+    --border: 51 65 85;
+  }
+
+  * {
+    border-color: rgb(51, 65, 85);
+  }
+  
+  body {
+    background-color: #050814;
+    color: #e4e4e7;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Fix MapLibre CSS interference with Tailwind positioning */
+  .bottom-0 { bottom: 0px !important; }
+  .bottom-1 { bottom: 0.25rem !important; }
+  .bottom-2 { bottom: 0.5rem !important; }
+  .bottom-3 { bottom: 0.75rem !important; }
+  .bottom-4 { bottom: 1rem !important; }
+  .bottom-5 { bottom: 1.25rem !important; }
+  .bottom-6 { bottom: 1.5rem !important; }
+  .bottom-8 { bottom: 2rem !important; }
+  .bottom-10 { bottom: 2.5rem !important; }
+  .bottom-12 { bottom: 3rem !important; }
+  .bottom-16 { bottom: 4rem !important; }
+  .bottom-20 { bottom: 5rem !important; }
+  .bottom-24 { bottom: 6rem !important; }
+  .bottom-25 { bottom: 6.25rem !important; }
+  .bottom-32 { bottom: 8rem !important; }
+
+  .right-0 { right: 0px !important; }
+  .right-1 { right: 0.25rem !important; }
+  .right-2 { right: 0.5rem !important; }
+  .right-3 { right: 0.75rem !important; }
+  .right-4 { right: 1rem !important; }
+  .right-5 { right: 1.25rem !important; }
+  .right-6 { right: 1.5rem !important; }
+  .right-8 { right: 2rem !important; }
+  .right-10 { right: 2.5rem !important; }
+  .right-12 { right: 3rem !important; }
+  .right-16 { right: 4rem !important; }
+  .right-20 { right: 5rem !important; }
+  .right-24 { right: 6rem !important; }
+  .right-32 { right: 8rem !important; }
+}

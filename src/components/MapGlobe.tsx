@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import * as SunCalc from 'suncalc'
 
 interface Visit {
   id: string
@@ -25,9 +26,11 @@ interface Visit {
 
 interface MapGlobeProps {
   visits?: Visit[]
+  selectedVisit?: Visit | null
+  onVisitSelect?: (visit: Visit | null) => void
 }
 
-export default function MapGlobe({ visits = [] }: MapGlobeProps) {
+export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect }: MapGlobeProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -36,7 +39,6 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
   useEffect(() => {
     if (!mapContainer.current || map.current) return
 
-    console.log('Initializing Mapbox Globe...')
     setIsLoading(true)
     setError(null)
 
@@ -57,24 +59,24 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
             version: 8,
             glyphs: 'mapbox://fonts/mapbox/{fontstack}/{range}.pbf',
             sources: {
-              streets: { 
-                type: 'vector', 
-                url: 'mapbox://mapbox.mapbox-streets-v8' 
+              streets: {
+                type: 'vector',
+                url: 'mapbox://mapbox.mapbox-streets-v8'
               },
-              countries: { 
-                type: 'vector', 
-                url: 'mapbox://mapbox.country-boundaries-v1' 
+              countries: {
+                type: 'vector',
+                url: 'mapbox://mapbox.country-boundaries-v1'
               }
             },
             layers: [
               // 1) Background as dark blue ocean
-              { 
-                id: 'bg', 
-                type: 'background', 
+              {
+                id: 'bg',
+                type: 'background',
                 paint: { 'background-color': '#0D1B2A' } // Dark blue water
               },
-              
-              // 2) Dark land with tiny brightness increase
+
+              // 2) Dark black land base
               {
                 id: 'land',
                 type: 'fill',
@@ -82,12 +84,12 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 'source-layer': 'country_boundaries',
                 filter: ['==', ['get','disputed'], 'false'],
                 paint: {
-                  'fill-color': ['interpolate', ['linear'], ['zoom'], 0, '#121416', 5, '#141618', 8, '#16181A'],
+                  'fill-color': ['interpolate', ['linear'], ['zoom'], 0, '#0A0A0A', 5, '#0C0C0C', 8, '#0E0E0E'],
                   'fill-opacity': 1
                 }
               },
-              
-              // 2a) Subtle green sheen overlay 
+
+              // 2a) Very subtle green sheen overlay with shine
               {
                 id: 'land-green-sheen',
                 type: 'fill',
@@ -95,11 +97,40 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 'source-layer': 'country_boundaries',
                 filter: ['==', ['get','disputed'], 'false'],
                 paint: {
-                  'fill-color': '#1A4D2A', // More vibrant green
-                  'fill-opacity': 0.12 // Dialed back green sheen
+                  'fill-color': '#1A2A1A', // Slightly brighter subtle green for shine
+                  'fill-opacity': 0.15 // Increased opacity for more sheen
                 }
               },
-              
+
+              // 2b) Pearlescent highlight layer - more noticeable
+              {
+                id: 'land-pearlescent',
+                type: 'fill',
+                source: 'countries',
+                'source-layer': 'country_boundaries',
+                filter: ['==', ['get','disputed'], 'false'],
+                paint: {
+                  'fill-color': [
+                    'interpolate',
+                    ['linear'],
+                    ['get', 'scalerank'], // Use a property that varies across features
+                    0, '#5A7A5A', // Much brighter green highlight
+                    3, '#4A6A4A', // Medium bright green
+                    6, '#3A5A3A', // Medium green
+                    10, '#2A4A2A' // Still visible darker green
+                  ],
+                  'fill-opacity': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    0, 0.25, // Much more visible at low zoom
+                    3, 0.35, // Peak visibility at medium zoom
+                    6, 0.30, // Still strong
+                    10, 0.20 // Visible at high zoom
+                  ]
+                }
+              },
+
               // 3) Water above land - dark blue like background
               {
                 id: 'water',
@@ -107,13 +138,13 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 source: 'streets',
                 'source-layer': 'water',
                 filter: ['>=', ['get', 'area'], 1000000],
-                paint: { 
+                paint: {
                   'fill-color': '#0D1B2A', // Dark blue water
                   'fill-opacity': 0.92,
                   'fill-antialias': false
                 }
               },
-              
+
               // 4) Translucent grey international borders
               {
                 id: 'borders-intl',
@@ -125,14 +156,14 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                   ['==', ['get','maritime'], false],
                   ['match', ['get','worldview'], ['US','all','IN','JP','CN'], true, false]
                 ],
-                paint: { 
+                paint: {
                   'line-color': '#808080',
-                  'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.4, 6, 1.0], 
+                  'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.4, 6, 1.0],
                   'line-opacity': 0.6,
                   'line-blur': 0.2
                 }
               },
-              
+
               // 5) Additional grey border glow
               {
                 id: 'borders-glow',
@@ -144,14 +175,14 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                   ['==', ['get','maritime'], false],
                   ['match', ['get','worldview'], ['US','all','IN','JP','CN'], true, false]
                 ],
-                paint: { 
+                paint: {
                   'line-color': '#808080',
-                  'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.8, 6, 2.0], 
+                  'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.8, 6, 2.0],
                   'line-opacity': 0.2,
                   'line-blur': 1.0
                 }
               },
-              
+
               // 6) Political boundaries - translucent grey
               {
                 id: 'borders-admin1',
@@ -163,14 +194,14 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                   ['==', ['get','maritime'], false],
                   ['match', ['get','worldview'], ['US','all'], true, false]
                 ],
-                paint: { 
+                paint: {
                   'line-color': '#909090',
                   'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.05, 4, 0.15, 6, 0.3],
                   'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.3, 4, 0.4, 6, 0.5],
                   'line-blur': 0.3
                 }
               },
-              
+
               // 7) Political boundaries backup - translucent grey
               {
                 id: 'borders-country-admin',
@@ -178,7 +209,7 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 source: 'countries',
                 'source-layer': 'country_boundaries',
                 filter: ['==', ['get','disputed'], 'false'],
-                paint: { 
+                paint: {
                   'line-color': '#909090',
                   'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.08, 4, 0.2, 6, 0.4],
                   'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.35, 4, 0.45, 6, 0.55],
@@ -191,28 +222,65 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
           zoom: 1.5
         })
 
-        // Add enhanced fog effect and lighting for day/night globe
+        // Add enhanced fog effect and realistic sun lighting
         map.current.on('style.load', () => {
           if (map.current) {
-            // Enhanced fog with atmospheric lighting
+            // Enhanced fog with atmospheric lighting for globe
             map.current.setFog({
-              color: 'rgba(10,61,115,0.6)', // Darker blue matching water
-              'horizon-blend': 0.15, // More defined horizon
-              'high-color': 'rgba(255,255,255,0.25)', // Brighter highlight for sheen
-              'space-color': '#000810', // Deep space background
-              'star-intensity': 0.8 // Subtle stars for elegance
+              color: 'rgb(186,210,235)', // Atmospheric blue
+              'high-color': 'rgb(36,92,223)', // High altitude color
+              'horizon-blend': 0.02, // Crisp horizon
+              'space-color': 'rgb(11,11,25)', // Deep space
+              'star-intensity': 0.6 // Visible stars
             })
-            
-            // Add directional lighting for day/night effect
-            if (map.current.setLight) {
-              map.current.setLight({
-                'color': '#ffffff',
-                'intensity': 0.8,
-                'position': [1.5, 90, 80] // Position sun to create light/shadow
-              })
+
+            // Helper to convert SunCalc angles to Mapbox light positioning
+            const sunToMapboxAngles = (date: Date, lat: number, lng: number) => {
+              const { azimuth, altitude } = SunCalc.getPosition(date, lat, lng) // radians
+              const azimuthDeg = (azimuth * 180 / Math.PI + 180) % 360 // south→west to north-clockwise
+              const elevationDeg = altitude * 180 / Math.PI // 0 horizon; +90 zenith
+              const polarDeg = 90 - elevationDeg // 0 zenith; 90 horizon; >90 below
+              return { azimuthDeg, polarDeg }
             }
-            
-            console.log('Mapbox globe with day/night lighting loaded')
+
+            // Function to update sun lighting based on map center
+            const updateSunLighting = () => {
+              if (!map.current) return
+
+              try {
+                const center = map.current.getCenter()
+                const { azimuthDeg, polarDeg } = sunToMapboxAngles(new Date(), center.lat, center.lng)
+
+                // Set realistic sun lighting using Mapbox v2 flat light
+                map.current.setLight({
+                  anchor: 'map', // Sun stays fixed relative to world
+                  color: '#FFE4B5', // Warm sunlight color
+                  intensity: 0.8, // Bright but not overwhelming
+                  position: [1.5, azimuthDeg, Math.max(0, Math.min(180, polarDeg))]
+                })
+
+                console.log(`☀️ Sun updated: azimuth ${azimuthDeg.toFixed(1)}°, polar ${polarDeg.toFixed(1)}°`)
+              } catch (error) {
+                console.error('❌ Sun lighting update failed:', error)
+              }
+            }
+
+            // Initial sun setup
+            console.log('Setting up realistic sun lighting...')
+            updateSunLighting()
+
+            // Update sun when map moves (so sun position matches geography)
+            map.current.on('moveend', updateSunLighting)
+
+            // Optional: Update sun position every 5 minutes for real-time sun movement
+            const sunUpdateInterval = setInterval(updateSunLighting, 5 * 60 * 1000)
+
+            // Cleanup interval on map removal
+            map.current.on('remove', () => {
+              clearInterval(sunUpdateInterval)
+            })
+
+            console.log('Mapbox globe with realistic sun lighting loaded')
           }
         })
 
@@ -220,15 +288,8 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
         const addMarkers = () => {
           if (!map.current) return
 
-          const locations = visits.length > 0 ? visits : [
-            { placeName: 'New York', placeData: { latitude: 40.7128, longitude: -74.0060 } },
-            { placeName: 'London', placeData: { latitude: 51.5074, longitude: -0.1278 } },
-            { placeName: 'Tokyo', placeData: { latitude: 35.6762, longitude: 139.6503 } },
-            { placeName: 'Sydney', placeData: { latitude: -33.8688, longitude: 151.2093 } }
-          ]
-
-          locations.forEach((location) => {
-            if (location.placeData && map.current) {
+          visits.forEach((visit) => {
+            if (visit.placeData && map.current) {
               // Create marker element
               const el = document.createElement('div')
               el.className = 'visit-marker'
@@ -240,10 +301,17 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
                 height: 12px;
                 cursor: pointer;
               `
-              
+
+              // Add click handler
+              el.addEventListener('click', () => {
+                if (onVisitSelect) {
+                  onVisitSelect(visit)
+                }
+              })
+
               // Add marker to map
               new mapboxgl.Marker(el)
-                .setLngLat([location.placeData.longitude, location.placeData.latitude])
+                .setLngLat([visit.placeData.longitude, visit.placeData.latitude])
                 .addTo(map.current)
             }
           })
@@ -256,7 +324,6 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
           console.log('Mapbox globe fully loaded')
         })
 
-        console.log('Mapbox globe initialized')
 
       } catch (error) {
         console.error('Failed to initialize Mapbox:', error)
@@ -355,7 +422,7 @@ export default function MapGlobe({ visits = [] }: MapGlobeProps) {
         <div
           style={{
             position: 'absolute',
-            bottom: '20px',
+            bottom: '50px',
             left: '20px',
             background: 'rgba(0, 0, 0, 0.7)',
             color: 'white',

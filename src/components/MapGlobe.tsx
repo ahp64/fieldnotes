@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import * as SunCalc from 'suncalc'
 
 interface Visit {
   id: string
@@ -28,17 +27,23 @@ interface MapGlobeProps {
   visits?: Visit[]
   selectedVisit?: Visit | null
   onVisitSelect?: (visit: Visit | null) => void
+  autoRotate?: boolean
+  autoZoom?: boolean
+  focusLocation?: { lat: number, lng: number, name: string } | null
 }
 
-export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect }: MapGlobeProps) {
+export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, autoRotate = false, autoZoom = false, focusLocation = null }: MapGlobeProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const rotationRef = useRef<number | null>(null)
+  const focusMarker = useRef<mapboxgl.Marker | null>(null)
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
 
+    console.log('MapGlobe: Initializing map')
     setIsLoading(true)
     setError(null)
 
@@ -222,65 +227,19 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect }: 
           zoom: 1.5
         })
 
-        // Add enhanced fog effect and realistic sun lighting
+        // Add enhanced fog effect and lighting for day/night globe
         map.current.on('style.load', () => {
           if (map.current) {
-            // Enhanced fog with atmospheric lighting for globe
+            // Enhanced fog with atmospheric lighting
             map.current.setFog({
-              color: 'rgb(186,210,235)', // Atmospheric blue
-              'high-color': 'rgb(36,92,223)', // High altitude color
-              'horizon-blend': 0.02, // Crisp horizon
-              'space-color': 'rgb(11,11,25)', // Deep space
-              'star-intensity': 0.6 // Visible stars
+              color: 'rgba(10,61,115,0.6)', // Darker blue matching water
+              'horizon-blend': 0.15, // More defined horizon
+              'high-color': 'rgba(255,255,255,0.25)', // Brighter highlight for sheen
+              'space-color': '#000810', // Deep space background
+              'star-intensity': 0.8 // Subtle stars for elegance
             })
 
-            // Helper to convert SunCalc angles to Mapbox light positioning
-            const sunToMapboxAngles = (date: Date, lat: number, lng: number) => {
-              const { azimuth, altitude } = SunCalc.getPosition(date, lat, lng) // radians
-              const azimuthDeg = (azimuth * 180 / Math.PI + 180) % 360 // south→west to north-clockwise
-              const elevationDeg = altitude * 180 / Math.PI // 0 horizon; +90 zenith
-              const polarDeg = 90 - elevationDeg // 0 zenith; 90 horizon; >90 below
-              return { azimuthDeg, polarDeg }
-            }
-
-            // Function to update sun lighting based on map center
-            const updateSunLighting = () => {
-              if (!map.current) return
-
-              try {
-                const center = map.current.getCenter()
-                const { azimuthDeg, polarDeg } = sunToMapboxAngles(new Date(), center.lat, center.lng)
-
-                // Set realistic sun lighting using Mapbox v2 flat light
-                map.current.setLight({
-                  anchor: 'map', // Sun stays fixed relative to world
-                  color: '#FFE4B5', // Warm sunlight color
-                  intensity: 0.8, // Bright but not overwhelming
-                  position: [1.5, azimuthDeg, Math.max(0, Math.min(180, polarDeg))]
-                })
-
-                console.log(`☀️ Sun updated: azimuth ${azimuthDeg.toFixed(1)}°, polar ${polarDeg.toFixed(1)}°`)
-              } catch (error) {
-                console.error('❌ Sun lighting update failed:', error)
-              }
-            }
-
-            // Initial sun setup
-            console.log('Setting up realistic sun lighting...')
-            updateSunLighting()
-
-            // Update sun when map moves (so sun position matches geography)
-            map.current.on('moveend', updateSunLighting)
-
-            // Optional: Update sun position every 5 minutes for real-time sun movement
-            const sunUpdateInterval = setInterval(updateSunLighting, 5 * 60 * 1000)
-
-            // Cleanup interval on map removal
-            map.current.on('remove', () => {
-              clearInterval(sunUpdateInterval)
-            })
-
-            console.log('Mapbox globe with realistic sun lighting loaded')
+            console.log('Mapbox globe loaded')
           }
         })
 
@@ -319,6 +278,7 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect }: 
 
         // Wait for map to load before adding markers
         map.current.on('load', () => {
+          console.log('MapGlobe: Map loaded')
           setIsLoading(false)
           addMarkers()
           console.log('Mapbox globe fully loaded')
@@ -335,13 +295,135 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect }: 
     initializeMap()
 
     return () => {
-      // Cleanup Mapbox instance
+      // Cleanup rotation, markers, and Mapbox instance
+      stopRotation()
+      if (focusMarker.current) {
+        focusMarker.current.remove()
+        focusMarker.current = null
+      }
       if (map.current) {
         map.current.remove()
         map.current = null
       }
     }
   }, [visits])
+
+  // Handle initial auto-rotation setup
+  useEffect(() => {
+    if (!map.current || isLoading) return
+
+    console.log('MapGlobe: Auto-rotation effect triggered, autoRotate:', autoRotate, 'focusLocation:', focusLocation)
+
+    if (autoRotate && !focusLocation) {
+      console.log('MapGlobe: Starting auto-rotation from effect after delay')
+      // Small delay to ensure map is fully ready
+      const timeout = setTimeout(() => {
+        startRotation()
+      }, 500)
+      return () => clearTimeout(timeout)
+    } else {
+      console.log('MapGlobe: Stopping auto-rotation from effect')
+      stopRotation()
+    }
+  }, [autoRotate, focusLocation, isLoading])
+
+  const startRotation = () => {
+    console.log('MapGlobe: startRotation called, map exists:', !!map.current, 'already rotating:', !!rotationRef.current)
+    if (!map.current || rotationRef.current) return
+
+    console.log('MapGlobe: Starting rotation animation')
+
+    const rotateCamera = () => {
+      if (!map.current || focusLocation) {
+        console.log('MapGlobe: Stopping rotation - map gone or focus location set')
+        return
+      }
+
+      try {
+        const center = map.current.getCenter()
+        center.lng += 0.2 // Slow rotation speed
+        map.current.easeTo({
+          center,
+          duration: 100,
+          easing: (t) => t
+        })
+
+        rotationRef.current = requestAnimationFrame(rotateCamera)
+      } catch (error) {
+        console.error('Rotation error:', error)
+        stopRotation()
+      }
+    }
+
+    rotationRef.current = requestAnimationFrame(rotateCamera)
+  }
+
+  const stopRotation = () => {
+    if (rotationRef.current) {
+      cancelAnimationFrame(rotationRef.current)
+      rotationRef.current = null
+    }
+  }
+
+  // Handle focus location changes (for seamless zoom without reload)
+  useEffect(() => {
+    if (!map.current || !autoZoom || isLoading) return
+
+    console.log('MapGlobe: Focus location effect triggered, focusLocation:', focusLocation)
+
+    if (focusLocation) {
+      console.log('MapGlobe: Focusing on location:', focusLocation)
+      stopRotation()
+
+      // Remove existing focus marker
+      if (focusMarker.current) {
+        focusMarker.current.remove()
+      }
+
+      // Create yellow marker for focus location
+      const el = document.createElement('div')
+      el.style.cssText = `
+        background-color: #f1c40f;
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        box-shadow: 0 0 20px rgba(241, 196, 15, 0.8);
+      `
+
+      // Add focus marker
+      focusMarker.current = new mapboxgl.Marker(el)
+        .setLngLat([focusLocation.lng, focusLocation.lat])
+        .addTo(map.current)
+
+      // Seamlessly zoom to the location
+      map.current.flyTo({
+        center: [focusLocation.lng, focusLocation.lat],
+        zoom: 4,
+        duration: 2000,
+        essential: true
+      })
+    } else {
+      console.log('MapGlobe: Returning to global view')
+      // Remove focus marker and return to global view
+      if (focusMarker.current) {
+        focusMarker.current.remove()
+        focusMarker.current = null
+      }
+
+      map.current.flyTo({
+        center: [0, 20],
+        zoom: 1.5,
+        duration: 2000,
+        essential: true
+      })
+
+      if (autoRotate) {
+        console.log('MapGlobe: Will restart rotation after return to global view')
+        setTimeout(() => startRotation(), 2000)
+      }
+    }
+  }, [focusLocation, autoZoom, autoRotate, isLoading])
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

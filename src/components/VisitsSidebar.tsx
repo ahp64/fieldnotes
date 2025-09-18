@@ -102,7 +102,8 @@ function VisitCard({ visit }: { visit: Visit }) {
           fontWeight: '700',
           color: 'white',
           lineHeight: '1.2',
-          margin: '0 0 8px 0'
+          margin: '0 0 8px 0',
+          fontFamily: 'var(--font-montserrat), sans-serif'
         }}>
           {visit.placeName.split(',')[0]}
         </h1>
@@ -111,7 +112,8 @@ function VisitCard({ visit }: { visit: Visit }) {
             fontSize: '18px',
             color: 'rgba(255, 255, 255, 0.8)',
             fontStyle: 'italic',
-            margin: '0 0 12px 0'
+            margin: '0 0 12px 0',
+            fontFamily: 'var(--font-playfair), serif'
           }}>
             "{visit.tagline}"
           </div>
@@ -119,7 +121,8 @@ function VisitCard({ visit }: { visit: Visit }) {
         <div style={{
           fontSize: '16px',
           color: 'rgba(255, 255, 255, 0.6)',
-          fontWeight: '500'
+          fontWeight: '500',
+          fontFamily: 'var(--font-montserrat), sans-serif'
         }}>
           {getRelativeDate(visit.date)}
         </div>
@@ -132,7 +135,8 @@ function VisitCard({ visit }: { visit: Visit }) {
             fontSize: '18px',
             color: 'rgba(255, 255, 255, 0.9)',
             lineHeight: '1.6',
-            margin: 0
+            margin: 0,
+            fontFamily: 'var(--font-playfair), serif'
           }}>
             {visit.notes}
           </p>

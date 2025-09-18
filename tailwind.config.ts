@@ -11,6 +11,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         montserrat: ['var(--font-montserrat)', 'sans-serif'],
+        'roboto-serif': ['var(--font-roboto-serif)', 'serif'],
       },
       colors: {
         background: '#0b1021',

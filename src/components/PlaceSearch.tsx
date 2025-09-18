@@ -59,11 +59,25 @@ export function PlaceSearch({ onPlaceSelect, initialValue = '' }: PlaceSearchPro
     <div className="relative">
       <input
         type="text"
-        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-        placeholder="Search for a place..."
+        className="w-full px-6 py-4 focus:outline-none transition-all duration-300 text-lg"
+        style={{
+          backgroundColor: '#1a1a1a',
+          color: '#f8f8f8',
+          fontFamily: 'var(--font-roboto-serif), serif',
+          border: '2px solid #4b5563',
+          borderRadius: '12px'
+        }}
+        placeholder="Search for any place around the world"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => results.length > 0 && setShowResults(true)}
+        onFocus={(e) => {
+          results.length > 0 && setShowResults(true)
+          e.target.style.borderColor = '#9333ea'
+        }}
+        onBlur={(e) => {
+          setTimeout(() => setShowResults(false), 200) // Delay to allow click on result
+          e.target.style.borderColor = '#4b5563'
+        }}
       />
       
       {isLoading && (
@@ -73,23 +87,71 @@ export function PlaceSearch({ onPlaceSelect, initialValue = '' }: PlaceSearchPro
       )}
 
       {showResults && results.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div
+          className="absolute z-10 w-full mt-2 shadow-lg max-h-60 overflow-y-auto"
+          style={{
+            backgroundColor: '#1a1a1a',
+            border: '2px solid #4b5563',
+            borderRadius: '12px'
+          }}
+        >
           {results.map((place) => (
             <button
               key={place.id}
-              className="w-full text-left px-3 py-2 hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
+              className="w-full text-left px-6 py-3 focus:outline-none transition-all duration-200 border-b last:border-b-0"
+              style={{
+                borderColor: '#4b5563',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#2a2a2a'
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent'
+              }}
               onClick={() => handlePlaceSelect(place)}
             >
-              <div className="font-medium text-foreground">{place.name.split(',')[0]}</div>
-              <div className="text-sm text-muted-foreground">{place.name}</div>
+              <div
+                className="font-medium text-lg"
+                style={{
+                  color: '#f8f8f8',
+                  fontFamily: 'var(--font-roboto-serif), serif'
+                }}
+              >
+                {place.name.split(',')[0]}
+              </div>
+              <div
+                className="text-sm"
+                style={{
+                  color: '#a0a0a0',
+                  fontFamily: 'var(--font-roboto-serif), serif'
+                }}
+              >
+                {place.name}
+              </div>
             </button>
           ))}
         </div>
       )}
 
       {showResults && results.length === 0 && query.length >= 3 && !isLoading && (
-        <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg p-3">
-          <div className="text-muted-foreground text-sm">No places found for "{query}"</div>
+        <div
+          className="absolute z-10 w-full mt-2 shadow-lg p-4"
+          style={{
+            backgroundColor: '#1a1a1a',
+            border: '2px solid #4b5563',
+            borderRadius: '12px'
+          }}
+        >
+          <div
+            className="text-sm"
+            style={{
+              color: '#a0a0a0',
+              fontFamily: 'var(--font-roboto-serif), serif'
+            }}
+          >
+            No places found for "{query}"
+          </div>
         </div>
       )}
     </div>

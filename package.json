@@ -11,8 +11,12 @@
     "type-check": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:setup": "tsx scripts/apply-all-sql.ts",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx db/seed.ts"
+    "db:seed": "tsx db/seed.ts",
+    "db:seed:api": "tsx scripts/seed-via-api.ts",
+    "db:test": "tsx scripts/test-supabase.ts"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +24,7 @@
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.56.0",
     "@tailwindcss/postcss": "^4.1.12",
     "cesium": "^1.132.0",

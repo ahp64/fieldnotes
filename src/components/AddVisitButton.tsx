@@ -5,14 +5,45 @@ export function AddVisitButton() {
   return (
     <Link
       href="/visits/new"
-      className="w-16 h-16 bg-gradient-to-br from-sky-400 to-sky-600 hover:from-sky-500 hover:to-sky-700 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center group border-2 border-slate-700/30 hover:border-slate-600/40"
+      className="transition-all duration-300 hover:scale-105"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '80px',
+        height: '80px',
+        backgroundColor: '#9333ea',
+        borderRadius: '50%',
+        boxShadow: '0 8px 32px rgba(147, 51, 234, 0.4), 0 4px 16px rgba(147, 51, 234, 0.3)',
+        filter: 'drop-shadow(0 0 12px rgba(147, 51, 234, 0.4))',
+        position: 'relative'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = '#7c3aed'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = '#9333ea'
+      }}
     >
-      <div className="relative">
-        <MapPin className="w-6 h-6 text-white drop-shadow-lg" />
-        <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full border-2 border-white flex items-center justify-center">
-          <Plus className="w-3 h-3 text-white font-bold" />
-        </div>
-      </div>
+      <MapPin
+        className="drop-shadow-lg"
+        style={{
+          width: '44px',
+          height: '44px',
+          color: 'white'
+        }}
+      />
+      <Plus
+        className="drop-shadow-lg"
+        style={{
+          position: 'absolute',
+          bottom: '12px',
+          right: '16px',
+          width: '18px',
+          height: '18px',
+          color: 'white'
+        }}
+      />
     </Link>
   )
 }

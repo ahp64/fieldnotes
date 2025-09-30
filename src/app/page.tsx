@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import MapGlobe from '@/components/MapGlobe'
 import { useAuth } from '@/contexts/AuthContext'
 import { FloatingPanel } from '@/components/FloatingPanel'
@@ -10,6 +11,7 @@ import { AddVisitButton } from '@/components/AddVisitButton'
 import { VisitsSidebar } from '@/components/VisitsSidebar'
 import { MockVisitsButton } from '@/components/MockVisitsButton'
 import { RemoveVisitButton } from '@/components/RemoveVisitButton'
+import { Navigation } from '@/components/Navigation'
 
 interface Visit {
   id: string
@@ -24,7 +26,6 @@ interface Visit {
   }
   tagline?: string
   date: string
-  rating: number
   notes: string
   tags: string[]
   photos?: string[]
@@ -34,17 +35,85 @@ interface Visit {
 export default function Home() {
   const [visits, setVisits] = useState<Visit[]>([])
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
-    const storedVisits = localStorage.getItem('fieldnotes-visits')
-    if (storedVisits) {
-      setVisits(JSON.parse(storedVisits))
+    if (!loading && !user) {
+      router.push('/login')
     }
-  }, [])
+  }, [user, loading, router])
+
+  useEffect(() => {
+    if (user) {
+      loadVisitsFromSupabase()
+    }
+  }, [user])
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (user) {
+        loadVisitsFromSupabase()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleStorageChange)
+    }
+  }, [user])
+
+  const loadVisitsFromSupabase = async () => {
+    try {
+      const response = await fetch('/api/visits')
+      if (!response.ok) throw new Error('Failed to load visits')
+
+      const { visits: data } = await response.json()
+
+      if (data) {
+        const formattedVisits = data.map((v: any) => ({
+          id: v.id,
+          placeName: v.places.name,
+          placeData: {
+            id: v.places.id,
+            name: v.places.name,
+            latitude: v.places.lat,
+            longitude: v.places.lon,
+            type: 'place',
+            importance: 1,
+          },
+          date: v.visited_on,
+          notes: v.note || '',
+          tags: [],
+          photos: v.photos || [],
+          createdAt: v.visited_on,
+        }))
+        setVisits(formattedVisits)
+      }
+    } catch (error) {
+      console.error('Error loading visits:', error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b1021]">
+        <div className="text-[#7dd3fc] text-lg">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <>
+      {!selectedVisit && <Navigation />}
+
       {/* Globe Container - Extended width with proper math */}
       <div
         style={{

@@ -65,27 +65,36 @@ export default function NewVisit() {
     setIsLoading(true)
 
     try {
-      // For now, just store in localStorage as MVP
-      const visits = JSON.parse(localStorage.getItem('fieldnotes-visits') || '[]')
-      const newVisit = {
-        id: Date.now().toString(),
-        placeName: formData.placeName,
-        placeData: formData.placeData,
-        tagline: formData.tagline,
-        date: formData.date,
-        rating: 5, // Default rating
-        notes: formData.notes,
-        tags: [], // Empty tags array
-        photos: formData.photos,
-        createdAt: new Date().toISOString(),
+      if (!formData.placeData) {
+        throw new Error('Place not selected')
       }
-      
-      visits.push(newVisit)
-      localStorage.setItem('fieldnotes-visits', JSON.stringify(visits))
-      
+
+      const response = await fetch('/api/visits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          placeName: formData.placeName,
+          latitude: formData.placeData.latitude,
+          longitude: formData.placeData.longitude,
+          visitedOn: formData.date,
+          note: formData.notes,
+          photos: formData.photos,
+          privacy: 'public',
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save visit')
+      }
+
+      window.dispatchEvent(new Event('storage'))
       router.push('/')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving visit:', error)
+      alert(error.message || 'Failed to save visit. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -117,12 +126,38 @@ export default function NewVisit() {
   return (
     <>
       <Navigation />
-      <div className="min-h-[calc(100vh-4rem)] bg-black relative overflow-hidden">
+      <div className="h-screen bg-black relative fixed inset-0" style={{ overflow: 'hidden' }}>
         {/* Two Column Layout */}
-        <div className="flex h-[calc(100vh-4rem)]">
+        <div className="flex h-full">
           {/* Left Column - Form */}
-          <div className="flex-1 p-8 overflow-y-auto">
-            <div className="max-w-2xl mx-auto">
+          <div className="flex-1 overflow-y-auto relative" style={{ maxHeight: '100vh' }}>
+            {/* X Button in top-left */}
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="absolute top-4 left-4 w-10 h-10 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center z-10"
+              style={{
+                backgroundColor: 'transparent',
+                color: '#9333ea',
+                fontFamily: 'var(--font-montserrat), sans-serif',
+                border: '2px solid #9333ea',
+                background: 'rgba(147, 51, 234, 0.1)'
+              }}
+              onMouseEnter={(e) => {
+                const target = e.target as HTMLButtonElement
+                target.style.backgroundColor = '#9333ea'
+                target.style.color = 'white'
+              }}
+              onMouseLeave={(e) => {
+                const target = e.target as HTMLButtonElement
+                target.style.backgroundColor = 'rgba(147, 51, 234, 0.1)'
+                target.style.color = '#9333ea'
+              }}
+            >
+              ✕
+            </button>
+
+            <div className="max-w-2xl mx-auto p-8 pb-16">
               {/* Header */}
               <div className="mb-12 text-center">
                 <h1 className="text-5xl font-bold text-white mb-6 tracking-tight" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}>
@@ -237,99 +272,54 @@ export default function NewVisit() {
                   <h2 className="text-3xl font-semibold text-white text-center mb-8" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}>
                     Visual Memories
                   </h2>
-                  <div className="flex justify-center">
-                    <button
-                      type="button"
-                      className="py-4 px-8 rounded-2xl font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
-                      style={{
-                        backgroundColor: '#9333ea',
-                        color: 'white',
-                        fontFamily: 'var(--font-montserrat), sans-serif',
-                        border: 'none',
-                        boxShadow: '0 8px 25px rgba(147, 51, 234, 0.3)',
-                        background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
-                        width: '200px'
-                      }}
-                      onClick={() => {/* Handle photo upload */}}
-                      onMouseEnter={(e) => {
+                  <PhotoUpload onPhotosChange={handlePhotosChange} maxPhotos={5} />
+                </div>
+
+                {/* Save Journey Button */}
+                <div className="flex justify-center" style={{ marginTop: '80px' }}>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="py-12 px-16 font-bold transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                    style={{
+                      backgroundColor: '#9333ea',
+                      color: 'white',
+                      fontFamily: 'var(--font-montserrat), sans-serif',
+                      border: 'none',
+                      borderRadius: '3rem',
+                      boxShadow: '0 8px 25px rgba(147, 51, 234, 0.3)',
+                      background: isLoading ? '#6d28d9' : 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
+                      cursor: isLoading ? 'not-allowed' : 'pointer',
+                      opacity: isLoading ? 0.7 : 1,
+                      width: '280px',
+                      fontSize: '28px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isLoading) {
                         const target = e.target as HTMLButtonElement
                         target.style.background = 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)'
-                      }}
-                      onMouseLeave={(e) => {
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isLoading) {
                         const target = e.target as HTMLButtonElement
                         target.style.background = 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)'
-                      }}
-                    >
-                      Add Photos
-                    </button>
-                  </div>
+                      }
+                    }}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center gap-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        Saving Journey...
+                      </div>
+                    ) : (
+                      'Save Journey'
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-6 pt-8">
-              <button
-                type="button"
-                onClick={() => router.push('/')}
-                className="flex-1 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02]"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#9333ea',
-                  fontFamily: 'var(--font-montserrat), sans-serif',
-                  border: '2px solid #9333ea',
-                  background: 'rgba(147, 51, 234, 0.1)'
-                }}
-                onMouseEnter={(e) => {
-                  const target = e.target as HTMLButtonElement
-                  target.style.backgroundColor = '#9333ea'
-                  target.style.color = 'white'
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.target as HTMLButtonElement
-                  target.style.backgroundColor = 'rgba(147, 51, 234, 0.1)'
-                  target.style.color = '#9333ea'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
-                style={{
-                  backgroundColor: '#9333ea',
-                  color: 'white',
-                  fontFamily: 'var(--font-montserrat), sans-serif',
-                  border: 'none',
-                  boxShadow: '0 8px 25px rgba(147, 51, 234, 0.3)',
-                  background: isLoading ? '#6d28d9' : 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  opacity: isLoading ? 0.7 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!isLoading) {
-                    const target = e.target as HTMLButtonElement
-                    target.style.background = 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isLoading) {
-                    const target = e.target as HTMLButtonElement
-                    target.style.background = 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)'
-                  }
-                }}
-              >
-                {isLoading ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Saving Journey...
-                  </div>
-                ) : (
-                  'Save Journey'
-                )}
-              </button>
-            </div>
           </form>
             </div>
           </div>

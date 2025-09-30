@@ -1,99 +1,84 @@
 'use client'
 
+import { useState } from 'react'
+
 export function MockVisitsButton() {
-  const addMockVisits = () => {
-    // Create 4 mock visits using the same structure as the form
+  const [loading, setLoading] = useState(false)
+
+  const addMockVisits = async () => {
+    setLoading(true)
+
     const mockVisits = [
       {
-        id: Date.now().toString(),
-        placeName: 'Paris',
-        placeData: {
-          id: 1,
-          name: 'Paris',
-          latitude: 48.8566,
-          longitude: 2.3522,
-          type: 'city',
-          importance: 0.8
-        },
-        date: '2024-06-15',
-        rating: 5,
-        notes: 'Amazing city with incredible architecture and food!',
-        tags: ['culture', 'food', 'history'],
+        placeName: 'Paris, France',
+        latitude: 48.8566,
+        longitude: 2.3522,
+        visitedOn: '2024-06-15',
+        note: 'Amazing city with incredible architecture and food!',
         photos: [],
-        createdAt: new Date().toISOString(),
+        privacy: 'public'
       },
       {
-        id: (Date.now() + 1).toString(),
-        placeName: 'Rio de Janeiro',
-        placeData: {
-          id: 2,
-          name: 'Rio de Janeiro',
-          latitude: -22.9068,
-          longitude: -43.1729,
-          type: 'city',
-          importance: 0.7
-        },
-        date: '2024-07-20',
-        rating: 4,
-        notes: 'Beautiful beaches and vibrant culture. Christ the Redeemer was breathtaking!',
-        tags: ['beach', 'culture', 'mountains'],
+        placeName: 'Rio de Janeiro, Brazil',
+        latitude: -22.9068,
+        longitude: -43.1729,
+        visitedOn: '2024-07-20',
+        note: 'Beautiful beaches and vibrant culture. Christ the Redeemer was breathtaking!',
         photos: [],
-        createdAt: new Date().toISOString(),
+        privacy: 'public'
       },
       {
-        id: (Date.now() + 2).toString(),
-        placeName: 'Reykjavik',
-        placeData: {
-          id: 3,
-          name: 'Reykjavik',
-          latitude: 64.1466,
-          longitude: -21.9426,
-          type: 'city',
-          importance: 0.6
-        },
-        date: '2024-08-10',
-        rating: 5,
-        notes: 'Northern lights and geothermal pools were magical. Such a unique landscape!',
-        tags: ['nature', 'adventure', 'northern-lights'],
+        placeName: 'Reykjavik, Iceland',
+        latitude: 64.1466,
+        longitude: -21.9426,
+        visitedOn: '2024-08-10',
+        note: 'Northern lights and geothermal pools were magical. Such a unique landscape!',
         photos: [],
-        createdAt: new Date().toISOString(),
+        privacy: 'public'
       },
       {
-        id: (Date.now() + 3).toString(),
-        placeName: 'Cape Town',
-        placeData: {
-          id: 4,
-          name: 'Cape Town',
-          latitude: -33.9249,
-          longitude: 18.4241,
-          type: 'city',
-          importance: 0.7
-        },
-        date: '2024-09-05',
-        rating: 4,
-        notes: 'Table Mountain views and wine country were unforgettable. Great food scene too!',
-        tags: ['mountains', 'wine', 'food'],
+        placeName: 'Cape Town, South Africa',
+        latitude: -33.9249,
+        longitude: 18.4241,
+        visitedOn: '2024-09-05',
+        note: 'Table Mountain views and wine country were unforgettable. Great food scene too!',
         photos: [],
-        createdAt: new Date().toISOString(),
+        privacy: 'public'
       }
     ]
 
-    // Get existing visits and append mock visits
-    const existingVisits = JSON.parse(localStorage.getItem('fieldnotes-visits') || '[]')
-    const allVisits = [...existingVisits, ...mockVisits]
-    localStorage.setItem('fieldnotes-visits', JSON.stringify(allVisits))
+    try {
+      for (const visit of mockVisits) {
+        const response = await fetch('/api/visits', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(visit),
+        })
 
-    // Refresh page to show new visits
-    window.location.reload()
+        if (!response.ok) {
+          throw new Error(`Failed to add ${visit.placeName}`)
+        }
+      }
+
+      window.dispatchEvent(new Event('storage'))
+    } catch (error) {
+      console.error('Error adding mock visits:', error)
+      alert('Failed to add mock visits. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <button
       onClick={addMockVisits}
-      className="w-12 h-12 bg-red-500 hover:bg-red-600 rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center text-white font-bold text-sm"
+      disabled={loading}
+      className="w-12 h-12 bg-red-500 hover:bg-red-600 disabled:bg-red-300 rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center text-white font-bold text-sm"
       title="Add 4 mock visits"
     >
-      +4
+      {loading ? '...' : '+4'}
     </button>
   )
 }

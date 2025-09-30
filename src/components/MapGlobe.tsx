@@ -16,7 +16,6 @@ interface Visit {
     importance: number
   }
   date: string
-  rating: number
   notes: string
   tags: string[]
   photos?: string[]
@@ -39,6 +38,13 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
   const [error, setError] = useState<string | null>(null)
   const rotationRef = useRef<number | null>(null)
   const focusMarker = useRef<mapboxgl.Marker | null>(null)
+  const focusLocationRef = useRef(focusLocation)
+  const rotationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Keep focusLocationRef in sync with focusLocation prop
+  useEffect(() => {
+    focusLocationRef.current = focusLocation
+  }, [focusLocation])
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
@@ -262,7 +268,8 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
               `
 
               // Add click handler
-              el.addEventListener('click', () => {
+              el.addEventListener('click', (e) => {
+                e.stopPropagation()
                 if (onVisitSelect) {
                   onVisitSelect(visit)
                 }
@@ -276,12 +283,21 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
           })
         }
 
+        // Disable user interaction if autoRotate is enabled (viewing other user's profile)
+        if (autoRotate) {
+          map.current.scrollZoom.disable()
+          map.current.boxZoom.disable()
+          map.current.dragRotate.disable()
+          map.current.dragPan.disable()
+          map.current.keyboard.disable()
+          map.current.doubleClickZoom.disable()
+          map.current.touchZoomRotate.disable()
+        }
+
         // Wait for map to load before adding markers
         map.current.on('load', () => {
-          console.log('MapGlobe: Map loaded')
           setIsLoading(false)
           addMarkers()
-          console.log('Mapbox globe fully loaded')
         })
 
 
@@ -312,30 +328,24 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
   useEffect(() => {
     if (!map.current || isLoading) return
 
-    console.log('MapGlobe: Auto-rotation effect triggered, autoRotate:', autoRotate, 'focusLocation:', focusLocation)
-
-    if (autoRotate && !focusLocation) {
-      console.log('MapGlobe: Starting auto-rotation from effect after delay')
+    // Only start rotation on initial load, not when focusLocation changes
+    // (focusLocation effect will handle restarting after zoom out)
+    if (autoRotate && !focusLocation && !focusMarker.current) {
       // Small delay to ensure map is fully ready
       const timeout = setTimeout(() => {
         startRotation()
       }, 500)
       return () => clearTimeout(timeout)
-    } else {
-      console.log('MapGlobe: Stopping auto-rotation from effect')
+    } else if (focusLocation) {
       stopRotation()
     }
   }, [autoRotate, focusLocation, isLoading])
 
   const startRotation = () => {
-    console.log('MapGlobe: startRotation called, map exists:', !!map.current, 'already rotating:', !!rotationRef.current)
     if (!map.current || rotationRef.current) return
 
-    console.log('MapGlobe: Starting rotation animation')
-
     const rotateCamera = () => {
-      if (!map.current || focusLocation) {
-        console.log('MapGlobe: Stopping rotation - map gone or focus location set')
+      if (!map.current || focusLocationRef.current) {
         return
       }
 
@@ -350,7 +360,6 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
 
         rotationRef.current = requestAnimationFrame(rotateCamera)
       } catch (error) {
-        console.error('Rotation error:', error)
         stopRotation()
       }
     }
@@ -369,10 +378,7 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
   useEffect(() => {
     if (!map.current || !autoZoom || isLoading) return
 
-    console.log('MapGlobe: Focus location effect triggered, focusLocation:', focusLocation)
-
     if (focusLocation) {
-      console.log('MapGlobe: Focusing on location:', focusLocation)
       stopRotation()
 
       // Remove existing focus marker
@@ -400,11 +406,12 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
       map.current.flyTo({
         center: [focusLocation.lng, focusLocation.lat],
         zoom: 4,
+        pitch: 0,
+        bearing: 0,
         duration: 2000,
         essential: true
       })
     } else {
-      console.log('MapGlobe: Returning to global view')
       // Remove focus marker and return to global view
       if (focusMarker.current) {
         focusMarker.current.remove()
@@ -413,14 +420,22 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
 
       map.current.flyTo({
         center: [0, 20],
-        zoom: 1.5,
+        zoom: 1.2,
+        pitch: 0,
+        bearing: 0,
         duration: 2000,
         essential: true
       })
 
       if (autoRotate) {
-        console.log('MapGlobe: Will restart rotation after return to global view')
-        setTimeout(() => startRotation(), 2000)
+        // Clear any existing timeout
+        if (rotationTimeoutRef.current) {
+          clearTimeout(rotationTimeoutRef.current)
+        }
+        rotationTimeoutRef.current = setTimeout(() => {
+          startRotation()
+          rotationTimeoutRef.current = null
+        }, 2100) // Wait slightly longer than flyTo duration
       }
     }
   }, [focusLocation, autoZoom, autoRotate, isLoading])
@@ -499,24 +514,6 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
         </div>
       )}
 
-      {/* Map Instructions */}
-      {!isLoading && !error && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '50px',
-            left: '20px',
-            background: 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            zIndex: 10
-          }}
-        >
-🌍 Interactive Globe • Scroll to zoom • Drag to rotate
-        </div>
-      )}
     </div>
   )
 }

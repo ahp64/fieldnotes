@@ -11,7 +11,6 @@ interface Visit {
   }
   tagline?: string
   date: string
-  rating: number
   notes: string
   tags: string[]
   photos?: string[]

@@ -15,6 +15,13 @@
       "when": 1756434871310,
       "tag": "0001_shallow_owl",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759261057097,
+      "tag": "0002_famous_madame_hydra",
+      "breakpoints": true
     }
   ]
 }

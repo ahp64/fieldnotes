@@ -33,7 +33,6 @@ export const visits = pgTable('visits', {
   userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   placeId: uuid('place_id').notNull().references(() => places.id, { onDelete: 'cascade' }),
   visitedOn: timestamp('visited_on', { withTimezone: true }).notNull(),
-  rating: integer('rating'), // 0-5 rating
   note: text('note'),
   photos: jsonb('photos').$type<string[]>(), // Array of photo URLs
   privacy: privacyEnum('privacy').default('public').notNull(),

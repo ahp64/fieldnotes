@@ -137,39 +137,6 @@ export default function UserProfilePage() {
 
   return (
     <>
-      {/* Exit Button */}
-      <button
-        onClick={() => router.push('/')}
-        style={{
-          position: 'fixed',
-          top: '16px',
-          left: '16px',
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          backgroundColor: 'rgba(147, 51, 234, 0.1)',
-          border: '2px solid #9333ea',
-          color: '#9333ea',
-          fontSize: '20px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#9333ea'
-          e.currentTarget.style.color = 'white'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'rgba(147, 51, 234, 0.1)'
-          e.currentTarget.style.color = '#9333ea'
-        }}
-      >
-        ✕
-      </button>
 
       {/* Globe Container - Centered like home page */}
       <div
@@ -262,7 +229,7 @@ export default function UserProfilePage() {
                   name: visit.place.name
                 })
               }}
-              onClose={() => setShowProfile(false)}
+              onClose={() => router.push('/')}
               onLike={handleLike}
             />
           )

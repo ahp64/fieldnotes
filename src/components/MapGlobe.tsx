@@ -40,6 +40,8 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
   const focusMarker = useRef<mapboxgl.Marker | null>(null)
   const focusLocationRef = useRef(focusLocation)
   const rotationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set())
+  const markersRef = useRef<Map<string, { marker: mapboxgl.Marker, labelMarker?: mapboxgl.Marker }>>(new Map())
 
   // Keep focusLocationRef in sync with focusLocation prop
   useEffect(() => {
@@ -253,6 +255,13 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
         const addMarkers = () => {
           if (!map.current) return
 
+          // Clear existing markers
+          markersRef.current.forEach(({ marker, labelMarker }) => {
+            marker.remove()
+            if (labelMarker) labelMarker.remove()
+          })
+          markersRef.current.clear()
+
           visits.forEach((visit) => {
             if (visit.placeData && map.current) {
               // Create marker element
@@ -275,10 +284,12 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
                 }
               })
 
-              // Add marker to map
-              new mapboxgl.Marker(el)
+              // Add marker to map and store reference
+              const marker = new mapboxgl.Marker(el)
                 .setLngLat([visit.placeData.longitude, visit.placeData.latitude])
                 .addTo(map.current)
+
+              markersRef.current.set(visit.id, { marker })
             }
           })
         }
@@ -330,14 +341,89 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
 
     // Only start rotation on initial load, not when focusLocation changes
     // (focusLocation effect will handle restarting after zoom out)
-    if (autoRotate && !focusLocation && !focusMarker.current) {
+    if (autoRotate && !focusLocation) {
       // Small delay to ensure map is fully ready
       const timeout = setTimeout(() => {
         startRotation()
       }, 500)
       return () => clearTimeout(timeout)
-    } else if (focusLocation) {
-      stopRotation()
+    }
+  }, [autoRotate, isLoading])
+
+  // Update label visibility based on whether markers are on visible side of globe
+  const updateLabelVisibility = () => {
+    if (!map.current) return
+
+    markersRef.current.forEach(({ marker, labelMarker }, visitId) => {
+      if (!labelMarker) return
+
+      const lngLat = marker.getLngLat()
+      const point = map.current!.project(lngLat)
+
+      // Get the camera position to check if point is on visible hemisphere
+      const center = map.current!.getCenter()
+      const markerLng = lngLat.lng
+
+      // Calculate if marker is on visible side (within ~90 degrees of center)
+      let diff = Math.abs(markerLng - center.lng)
+      if (diff > 180) diff = 360 - diff
+
+      const isVisible = diff < 90
+
+      // Show/hide label based on visibility
+      const labelEl = labelMarker.getElement()
+      if (labelEl) {
+        labelEl.style.opacity = isVisible ? '1' : '0'
+        labelEl.style.transition = 'opacity 0.2s'
+      }
+    })
+  }
+
+  // Update floating labels periodically when rotating
+  useEffect(() => {
+    if (!map.current || isLoading || !autoRotate || focusLocation) {
+      // Remove all label markers
+      markersRef.current.forEach(({ labelMarker }) => {
+        if (labelMarker) labelMarker.remove()
+      })
+      setSelectedLabelIds(new Set())
+      return
+    }
+
+    // Wait for markers to be created and map to be fully loaded
+    const startLabelUpdates = () => {
+      if (markersRef.current.size === 0) {
+        setTimeout(startLabelUpdates, 100)
+        return
+      }
+
+      // Initial update
+      updateFloatingLabels()
+
+      // Update which labels are shown every 3 seconds
+      const updateInterval = setInterval(() => {
+        updateFloatingLabels()
+      }, 3000)
+
+      // Update label visibility every frame to hide labels on back of globe
+      let visibilityFrameId: number
+      const visibilityLoop = () => {
+        updateLabelVisibility()
+        visibilityFrameId = requestAnimationFrame(visibilityLoop)
+      }
+      visibilityFrameId = requestAnimationFrame(visibilityLoop)
+
+      // Store interval for cleanup
+      return { updateInterval, visibilityFrameId }
+    }
+
+    const intervals = startLabelUpdates()
+
+    return () => {
+      if (intervals) {
+        clearInterval(intervals.updateInterval)
+        cancelAnimationFrame(intervals.visibilityFrameId)
+      }
     }
   }, [autoRotate, focusLocation, isLoading])
 
@@ -374,12 +460,217 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
     }
   }
 
+  // Create label marker element
+  const createLabelElement = (visit: Visit, index: number, onReadMore: () => void) => {
+    const placeName = visit.placeData!.name.split(',')[0]
+    // Use first sentence or first 60 chars of notes as tagline
+    const fullNotes = visit.notes || 'No notes'
+    const firstSentence = fullNotes.split(/[.!?]/)[0]
+    const tagline = firstSentence.length > 60 ? firstSentence.substring(0, 60) : firstSentence
+    const date = new Date(visit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+    const container = document.createElement('div')
+    container.className = 'label-marker'
+    container.style.cssText = `
+      pointer-events: auto;
+      cursor: pointer;
+    `
+
+    // Position above if northern hemisphere, below if southern hemisphere
+    const latitude = visit.placeData!.latitude
+    const isAbove = latitude >= 0 // Northern hemisphere = above
+    const offsetY = isAbove ? -120 : 60 // Moved further away from dot
+
+    container.innerHTML = `
+      <div style="position: relative;">
+        <!-- Connector line from dot to label -->
+        <svg width="2" height="${Math.abs(offsetY)}" style="
+          position: absolute;
+          left: -1px;
+          top: ${isAbove ? offsetY + 'px' : '0px'};
+          overflow: visible;
+        ">
+          <line
+            x1="1"
+            y1="${isAbove ? Math.abs(offsetY) - 20 : 0}"
+            x2="1"
+            y2="${isAbove ? Math.abs(offsetY) : 20}"
+            stroke="rgba(255, 255, 255, 0.3)"
+            stroke-width="1"
+            stroke-dasharray="2,2"
+          />
+        </svg>
+
+        <!-- Label content -->
+        <div class="label-content" style="
+          background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.15) 100%);
+          backdrop-filter: blur(12px);
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+          min-width: 180px;
+          max-width: 220px;
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          top: ${offsetY}px;
+          transition: all 0.2s ease;
+        ">
+          <div style="
+            color: #f1c40f;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-family: var(--font-montserrat), sans-serif;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          ">${placeName}</div>
+          <div style="
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 11px;
+            margin-bottom: 6px;
+            font-style: italic;
+            line-height: 1.3;
+          ">"${tagline}"</div>
+          <div style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <div style="
+              color: rgba(255, 255, 255, 0.5);
+              font-size: 10px;
+              font-family: var(--font-montserrat), sans-serif;
+            ">${date}</div>
+            <div style="
+              color: #f1c40f;
+              font-size: 11px;
+              font-weight: 600;
+              display: flex;
+              align-items: center;
+              gap: 4px;
+            ">
+              Read More
+              <span style="font-size: 14px;">»</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    // Add click handler
+    const labelContent = container.querySelector('.label-content') as HTMLElement
+    if (labelContent) {
+      labelContent.addEventListener('click', (e) => {
+        e.stopPropagation()
+        onReadMore()
+      })
+
+      // Add hover effect
+      labelContent.addEventListener('mouseenter', () => {
+        labelContent.style.background = 'linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.25) 100%)'
+        labelContent.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+      })
+      labelContent.addEventListener('mouseleave', () => {
+        labelContent.style.background = 'linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.15) 100%)'
+        labelContent.style.borderColor = 'rgba(255, 255, 255, 0.08)'
+      })
+    }
+
+    return container
+  }
+
+  // Update floating labels based on visible markers
+  const updateFloatingLabels = () => {
+    if (!map.current || visits.length === 0 || !autoRotate || !onVisitSelect) {
+      return
+    }
+
+    const bounds = map.current.getBounds()
+    if (!bounds) {
+      return
+    }
+
+    const visibleVisits = visits.filter(visit => {
+      if (!visit.placeData) return false
+      const { latitude, longitude } = visit.placeData
+      return bounds.contains([longitude, latitude])
+    })
+
+    if (visibleVisits.length === 0) {
+      // Remove all labels
+      markersRef.current.forEach(({ labelMarker }) => {
+        if (labelMarker) labelMarker.remove()
+      })
+      setSelectedLabelIds(new Set())
+      return
+    }
+
+    // Shuffle visible visits with time-based seed for variation
+    const seed = Math.floor(Date.now() / 3000)
+    const shuffled = [...visibleVisits].sort((a, b) => {
+      const hashA = (a.id.charCodeAt(0) * seed) % 1000
+      const hashB = (b.id.charCodeAt(0) * seed) % 1000
+      return hashA - hashB
+    })
+
+    // Always select exactly 2 labels (or fewer if not enough visible)
+    const labelCount = Math.min(2, visibleVisits.length)
+    const selectedVisits = shuffled.slice(0, labelCount)
+    const newSelectedIds = new Set(selectedVisits.map(v => v.id))
+
+    // Remove labels that are no longer selected
+    markersRef.current.forEach(({ labelMarker }, visitId) => {
+      if (labelMarker && !newSelectedIds.has(visitId)) {
+        labelMarker.remove()
+        const entry = markersRef.current.get(visitId)
+        if (entry) {
+          entry.labelMarker = undefined
+        }
+      }
+    })
+
+    // Add new labels
+    selectedVisits.forEach((visit, index) => {
+      const entry = markersRef.current.get(visit.id)
+      if (!entry || !visit.placeData) {
+        return
+      }
+
+      // Remove old label if exists
+      if (entry.labelMarker) {
+        entry.labelMarker.remove()
+      }
+
+      // Create new label marker with click handler
+      const labelEl = createLabelElement(visit, index, () => {
+        onVisitSelect(visit)
+      })
+      const labelMarker = new mapboxgl.Marker(labelEl, { anchor: 'center' })
+        .setLngLat([visit.placeData.longitude, visit.placeData.latitude])
+        .addTo(map.current!)
+
+      entry.labelMarker = labelMarker
+    })
+
+    setSelectedLabelIds(newSelectedIds)
+  }
+
   // Handle focus location changes (for seamless zoom without reload)
   useEffect(() => {
     if (!map.current || !autoZoom || isLoading) return
 
     if (focusLocation) {
+      // Stop rotation immediately
       stopRotation()
+
+      // Clear any pending rotation restart
+      if (rotationTimeoutRef.current) {
+        clearTimeout(rotationTimeoutRef.current)
+        rotationTimeoutRef.current = null
+      }
 
       // Remove existing focus marker
       if (focusMarker.current) {
@@ -412,12 +703,13 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
         essential: true
       })
     } else {
-      // Remove focus marker and return to global view
+      // Zooming out - remove focus marker first
       if (focusMarker.current) {
         focusMarker.current.remove()
         focusMarker.current = null
       }
 
+      // Return to global view
       map.current.flyTo({
         center: [0, 20],
         zoom: 1.2,
@@ -427,15 +719,30 @@ export default function MapGlobe({ visits = [], selectedVisit, onVisitSelect, au
         essential: true
       })
 
+      // Restart rotation after zoom out completes (only if autoRotate is enabled)
       if (autoRotate) {
-        // Clear any existing timeout
+        // Clear any existing timeout first
         if (rotationTimeoutRef.current) {
           clearTimeout(rotationTimeoutRef.current)
         }
+
+        // Stop any current rotation
+        stopRotation()
+
+        // Set new timeout to restart rotation after flyTo completes
         rotationTimeoutRef.current = setTimeout(() => {
+          console.log('Restarting rotation after zoom out')
           startRotation()
           rotationTimeoutRef.current = null
         }, 2100) // Wait slightly longer than flyTo duration
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (rotationTimeoutRef.current) {
+        clearTimeout(rotationTimeoutRef.current)
+        rotationTimeoutRef.current = null
       }
     }
   }, [focusLocation, autoZoom, autoRotate, isLoading])
